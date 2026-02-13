@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../models/analysis.dart';
 
 class HistoryScreen extends StatefulWidget {
   @override
@@ -12,35 +11,32 @@ class _HistoryScreenState extends State<HistoryScreen>
   late List<Animation<Offset>> _slideAnimations;
   late List<Animation<double>> _fadeAnimations;
 
-  final List<EyeAnalysis> analysisHistory = [
-    EyeAnalysis(
-      id: '1',
-      date: DateTime(2024, 11, 15, 14, 30),
-      status: 'Normal',
-      imagePath: '',
-      medicalInfo: {},
-    ),
-    EyeAnalysis(
-      id: '2',
-      date: DateTime(2024, 11, 1, 10, 15),
-      status: 'Normal',
-      imagePath: '',
-      medicalInfo: {},
-    ),
-    EyeAnalysis(
-      id: '3',
-      date: DateTime(2024, 10, 15, 16, 45),
-      status: 'Leve',
-      imagePath: '',
-      medicalInfo: {},
-    ),
-    EyeAnalysis(
-      id: '4',
-      date: DateTime(2024, 10, 1, 9, 0),
-      status: 'Normal',
-      imagePath: '',
-      medicalInfo: {},
-    ),
+  // Datos de prueba simples - sin usar clases personalizadas
+  final List<Map<String, dynamic>> analysisHistory = [
+    {
+      'id': '1',
+      'date': '15/11/2024',
+      'time': '14:30',
+      'status': 'Normal',
+    },
+    {
+      'id': '2',
+      'date': '01/11/2024',
+      'time': '10:15',
+      'status': 'Normal',
+    },
+    {
+      'id': '3',
+      'date': '15/10/2024',
+      'time': '16:45',
+      'status': 'Leve',
+    },
+    {
+      'id': '4',
+      'date': '01/10/2024',
+      'time': '09:00',
+      'status': 'Normal',
+    },
   ];
 
   @override
@@ -123,92 +119,89 @@ class _HistoryScreenState extends State<HistoryScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'Histórico de Análisis',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-      ),
-      body: Column(
-        children: [
-          Container(
-            padding: EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFF2D385E).withOpacity(0.1),
-                  Color(0xFF5258A4).withOpacity(0.1),
+    return Center(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: 800),
+        child: Column(
+          children: [
+            Container(
+              padding: EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                    Theme.of(context).colorScheme.secondary.withOpacity(0.1),
+                  ],
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.timeline,
+                      color: Theme.of(context).colorScheme.primary,
+                      size: 28,
+                    ),
+                  ),
+                  SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Total de Análisis',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          '${analysisHistory.length} registros',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).textTheme.headlineMedium?.color,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
-            child: Row(
-              children: [
-                Container(
-                  padding: EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Color(0xFF5258A4).withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    Icons.timeline,
-                    color: Color(0xFF5258A4),
-                    size: 28,
-                  ),
-                ),
-                SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Total de Análisis',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        '${analysisHistory.length} registros',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF2D385E),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+            Expanded(
+              child: ListView.builder(
+                padding: EdgeInsets.all(16),
+                itemCount: analysisHistory.length,
+                itemBuilder: (context, index) {
+                  final analysis = analysisHistory[index];
+                  return SlideTransition(
+                    position: _slideAnimations[index],
+                    child: FadeTransition(
+                      opacity: _fadeAnimations[index],
+                      child: _buildHistoryCard(analysis, index),
+                    ),
+                  );
+                },
+              ),
             ),
-          ),
-          Expanded(
-            child: ListView.builder(
-              padding: EdgeInsets.all(16),
-              itemCount: analysisHistory.length,
-              itemBuilder: (context, index) {
-                final analysis = analysisHistory[index];
-                return SlideTransition(
-                  position: _slideAnimations[index],
-                  child: FadeTransition(
-                    opacity: _fadeAnimations[index],
-                    child: _buildHistoryCard(analysis, index),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildHistoryCard(EyeAnalysis analysis, int index) {
-    final statusColor = _getStatusColor(analysis.status);
-    final statusIcon = _getStatusIcon(analysis.status);
+  Widget _buildHistoryCard(Map<String, dynamic> analysis, int index) {
+    final statusColor = _getStatusColor(analysis['status']);
+    final statusIcon = _getStatusIcon(analysis['status']);
     final isLeft = index % 2 == 0;
 
     return Container(
@@ -222,7 +215,7 @@ class _HistoryScreenState extends State<HistoryScreen>
             flex: 2,
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).cardTheme.color,
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
@@ -266,18 +259,18 @@ class _HistoryScreenState extends State<HistoryScreen>
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    '${analysis.date.day}/${analysis.date.month}/${analysis.date.year}',
+                                    analysis['date'],
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 16,
-                                      color: Color(0xFF2D385E),
+                                      color: Theme.of(context).textTheme.bodyLarge?.color,
                                     ),
                                   ),
                                   SizedBox(height: 2),
                                   Text(
-                                    '${analysis.date.hour}:${analysis.date.minute.toString().padLeft(2, '0')}',
+                                    analysis['time'],
                                     style: TextStyle(
-                                      color: Colors.grey[600],
+                                      color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
                                       fontSize: 13,
                                     ),
                                   ),
@@ -299,7 +292,7 @@ class _HistoryScreenState extends State<HistoryScreen>
                             ),
                           ),
                           child: Text(
-                            analysis.status,
+                            analysis['status'],
                             style: TextStyle(
                               color: statusColor,
                               fontWeight: FontWeight.bold,
@@ -330,7 +323,7 @@ class _HistoryScreenState extends State<HistoryScreen>
         color: color,
         shape: BoxShape.circle,
         border: Border.all(
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surface,
           width: 2,
         ),
         boxShadow: [

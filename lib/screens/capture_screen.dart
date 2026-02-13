@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../widgets/animated_button.dart';
+import '../widgets/responsive_wrapper.dart';
 
 class CaptureScreen extends StatefulWidget {
   @override
@@ -102,99 +103,88 @@ class _CaptureScreenState extends State<CaptureScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Captura de Retina', style: TextStyle(fontWeight: FontWeight.bold)),
-      ),
-      body: AnimatedSwitcher(
-        duration: Duration(milliseconds: 500),
-        child: _isUploading
-            ? _buildUploadingScreen()
-            : _analysisComplete
-                ? _buildAnalysisResults()
-                : _buildCaptureOptions(),
-      ),
+    return AnimatedSwitcher(
+      duration: Duration(milliseconds: 500),
+      child: _isUploading
+          ? _buildUploadingScreen()
+          : _analysisComplete
+              ? _buildAnalysisResults()
+              : _buildCaptureOptions(),
     );
   }
 
   Widget _buildCaptureOptions() {
     _pulseController.repeat(reverse: true);
 
-    return SingleChildScrollView(
-      padding: EdgeInsets.all(24.0),
-      child: Column(
-        children: [
-          SizedBox(height: 40),
-          AnimatedBuilder(
-            animation: _pulseAnimation,
-            builder: (context, child) {
-              return Transform.scale(
-                scale: _pulseAnimation.value,
-                child: Container(
-                  padding: EdgeInsets.all(40),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Color(0xFF2D385E).withOpacity(0.1),
-                        Color(0xFF5258A4).withOpacity(0.1),
+    return ResponsiveWrapper(
+      maxWidth: 800,
+      child: SingleChildScrollView(
+        padding: EdgeInsets.all(24.0),
+        child: Column(
+          children: [
+            SizedBox(height: 40),
+            AnimatedBuilder(
+              animation: _pulseAnimation,
+              builder: (context, child) {
+                return Transform.scale(
+                  scale: _pulseAnimation.value,
+                  child: Container(
+                    padding: EdgeInsets.all(40),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Color(0xFF2D385E).withOpacity(0.1),
+                          Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                        ],
+                      ),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                          blurRadius: 30,
+                          spreadRadius: 5,
+                        ),
                       ],
                     ),
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Color(0xFF5258A4).withOpacity(0.2),
-                        blurRadius: 30,
-                        spreadRadius: 5,
-                      ),
-                    ],
+                    child: Icon(
+                      Icons.camera_alt,
+                      size: 80,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
                   ),
-                  child: Icon(
-                    Icons.camera_alt,
-                    size: 80,
-                    color: Color(0xFF5258A4),
-                  ),
-                ),
-              );
-            },
-          ),
-          SizedBox(height: 40),
-          Text(
-            'Captura de Retina',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF2D385E),
+                );
+              },
             ),
-          ),
-          SizedBox(height: 12),
-          Text(
-            'Selecciona una opción para capturar\nla imagen de tu retina',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 16,
-              height: 1.5,
+            SizedBox(height: 40),
+            Text(
+              'Selecciona una opción para capturar\nla imagen de tu retina',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Theme.of(context).textTheme.bodyMedium?.color,
+                fontSize: 16,
+                height: 1.5,
+              ),
             ),
-          ),
-          SizedBox(height: 60),
-          AnimatedButton(
-            text: 'Tomar Foto',
-            icon: Icons.camera_alt,
-            onPressed: () => _pickImage(ImageSource.camera),
-            backgroundColor: Color(0xFF5258A4),
-            height: 60,
-          ),
-          SizedBox(height: 16),
-          AnimatedButton(
-            text: 'Seleccionar de Galería',
-            icon: Icons.photo_library,
-            onPressed: () => _pickImage(ImageSource.gallery),
-            backgroundColor: Color(0xFF2D385E),
-            height: 60,
-          ),
-        ],
+            SizedBox(height: 60),
+            AnimatedButton(
+              text: 'Tomar Foto',
+              icon: Icons.camera_alt,
+              onPressed: () => _pickImage(ImageSource.camera),
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              height: 60,
+            ),
+            SizedBox(height: 16),
+            AnimatedButton(
+              text: 'Seleccionar de Galería',
+              icon: Icons.photo_library,
+              onPressed: () => _pickImage(ImageSource.gallery),
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              height: 60,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -212,14 +202,14 @@ class _CaptureScreenState extends State<CaptureScreen>
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  Color(0xFF2D385E),
-                  Color(0xFF5258A4),
+                  Theme.of(context).colorScheme.primary,
+                  Theme.of(context).colorScheme.secondary,
                 ],
               ),
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: Color(0xFF5258A4).withOpacity(0.3),
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
                   blurRadius: 30,
                   spreadRadius: 10,
                 ),
@@ -228,7 +218,7 @@ class _CaptureScreenState extends State<CaptureScreen>
             child: Center(
               child: CircularProgressIndicator(
                 strokeWidth: 4,
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.onPrimary),
               ),
             ),
           ),
@@ -238,7 +228,7 @@ class _CaptureScreenState extends State<CaptureScreen>
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF2D385E),
+              color: Theme.of(context).textTheme.headlineMedium?.color,
             ),
           ),
           SizedBox(height: 16),
@@ -254,9 +244,9 @@ class _CaptureScreenState extends State<CaptureScreen>
                       child: LinearProgressIndicator(
                         value: _progressAnimation.value,
                         minHeight: 8,
-                        backgroundColor: Colors.grey[200],
+                        backgroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.grey[800]! : Colors.grey[200]!,
                         valueColor: AlwaysStoppedAnimation<Color>(
-                          Color(0xFF5258A4),
+                          Theme.of(context).colorScheme.primary,
                         ),
                       ),
                     ),
@@ -266,7 +256,7 @@ class _CaptureScreenState extends State<CaptureScreen>
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF5258A4),
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                     ),
                   ],
@@ -278,7 +268,7 @@ class _CaptureScreenState extends State<CaptureScreen>
           Text(
             'Procesando retina, por favor espera',
             style: TextStyle(
-              color: Colors.grey[600],
+              color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
               fontSize: 15,
             ),
           ),
@@ -288,158 +278,165 @@ class _CaptureScreenState extends State<CaptureScreen>
   }
 
   Widget _buildAnalysisResults() {
-    return SingleChildScrollView(
-      padding: EdgeInsets.all(20.0),
-      child: FadeTransition(
-        opacity: _revealAnimation,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Column(
-                children: [
-                  Hero(
-                    tag: 'retina_image',
-                    child: Container(
-                      width: 220,
-                      height: 220,
+    return ResponsiveWrapper(
+      maxWidth: 900,
+      child: SingleChildScrollView(
+        padding: EdgeInsets.all(20.0),
+        child: FadeTransition(
+          opacity: _revealAnimation,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Column(
+                  children: [
+                    Hero(
+                      tag: 'retina_image',
+                      child: Container(
+                        width: 220,
+                        height: 220,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          image: _selectedImage != null
+                              ? DecorationImage(
+                                  image: FileImage(_selectedImage!),
+                                  fit: BoxFit.cover,
+                                )
+                              : null,
+                          color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[800]! : Colors.grey[200]!,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 20,
+                              offset: Offset(0, 10),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 20),
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(20),
-                        image: _selectedImage != null
-                            ? DecorationImage(
-                                image: FileImage(_selectedImage!),
-                                fit: BoxFit.cover,
-                              )
-                            : null,
-                        color: Colors.grey[200],
+                        gradient: LinearGradient(
+                          colors: [Colors.green, Colors.green.shade400],
+                        ),
+                        borderRadius: BorderRadius.circular(30),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
-                            blurRadius: 20,
-                            offset: Offset(0, 10),
+                            color: Colors.green.withOpacity(0.3),
+                            blurRadius: 15,
+                            offset: Offset(0, 5),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.check_circle, color: Theme.of(context).colorScheme.onPrimary, size: 20),
+                          SizedBox(width: 8),
+                          Text(
+                            'Estado: Normal',
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onPrimary,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
                           ),
                         ],
                       ),
                     ),
-                  ),
-                  SizedBox(height: 20),
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Colors.green, Colors.green.shade400],
-                      ),
-                      borderRadius: BorderRadius.circular(30),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.green.withOpacity(0.3),
-                          blurRadius: 15,
-                          offset: Offset(0, 5),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.check_circle, color: Colors.white, size: 20),
-                        SizedBox(width: 8),
-                        Text(
-                          'Estado: Normal',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(height: 32),
-            Text(
-              'Información Médica',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF2D385E),
-              ),
-            ),
-            SizedBox(height: 16),
-            ..._analysisResults!.entries.map((entry) => _buildResultItem(
-                  entry.key,
-                  entry.value,
-                )),
-            SizedBox(height: 24),
-            Container(
-              padding: EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.blue[50],
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: Colors.blue[200]!,
-                  width: 1,
+                  ],
                 ),
               ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.blue[100],
-                      borderRadius: BorderRadius.circular(10),
+              SizedBox(height: 32),
+              Text(
+                'Información Médica',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).textTheme.headlineMedium?.color,
+                ),
+              ),
+              SizedBox(height: 16),
+              ..._analysisResults!.entries.map((entry) => _buildResultItem(
+                    entry.key,
+                    entry.value,
+                  )),
+              SizedBox(height: 24),
+              Container(
+                padding: EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).brightness == Brightness.dark 
+                    ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
+                    : Theme.of(context).colorScheme.secondary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: Theme.of(context).brightness == Brightness.dark
+                      ? Theme.of(context).colorScheme.primary.withOpacity(0.3)
+                      : Theme.of(context).colorScheme.secondary.withOpacity(0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.secondary.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        Icons.medical_services,
+                        color: Theme.of(context).colorScheme.secondary,
+                        size: 24,
+                      ),
                     ),
-                    child: Icon(
-                      Icons.medical_services,
-                      color: Colors.blue[700],
-                      size: 24,
+                    SizedBox(width: 16),
+                    Expanded(
+                      child: Text(
+                        'Te recomendamos consultar con un especialista para una evaluación completa.',
+                        style: TextStyle(
+                          color: Theme.of(context).textTheme.bodyLarge?.color,
+                          fontSize: 14,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _resetAnalysis,
+                      icon: Icon(Icons.refresh),
+                      label: Text('Nueva Captura'),
+                      style: OutlinedButton.styleFrom(
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        side: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2),
+                        foregroundColor: Theme.of(context).colorScheme.primary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
                     ),
                   ),
                   SizedBox(width: 16),
                   Expanded(
-                    child: Text(
-                      'Te recomendamos consultar con un especialista para una evaluación completa.',
-                      style: TextStyle(
-                        color: Colors.blue[900],
-                        fontSize: 14,
-                        height: 1.4,
-                      ),
+                    child: AnimatedButton(
+                      text: 'Guardar',
+                      icon: Icons.save,
+                      onPressed: () {},
+                      backgroundColor: Theme.of(context).colorScheme.primary,
                     ),
                   ),
                 ],
               ),
-            ),
-            SizedBox(height: 24),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _resetAnalysis,
-                    icon: Icon(Icons.refresh),
-                    label: Text('Nueva Captura'),
-                    style: OutlinedButton.styleFrom(
-                      padding: EdgeInsets.symmetric(vertical: 16),
-                      side: BorderSide(color: Color(0xFF5258A4), width: 2),
-                      foregroundColor: Color(0xFF5258A4),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                ),
-                SizedBox(width: 16),
-                Expanded(
-                  child: AnimatedButton(
-                    text: 'Guardar',
-                    icon: Icons.save,
-                    onPressed: () {},
-                    backgroundColor: Color(0xFF5258A4),
-                  ),
-                ),
-              ],
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -450,10 +447,12 @@ class _CaptureScreenState extends State<CaptureScreen>
       margin: EdgeInsets.only(bottom: 12),
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: Colors.grey[200]!,
+          color: Theme.of(context).brightness == Brightness.dark 
+              ? Theme.of(context).colorScheme.onSurface.withOpacity(0.2)
+              : Colors.grey[200]!,
           width: 1,
         ),
         boxShadow: [
@@ -473,7 +472,7 @@ class _CaptureScreenState extends State<CaptureScreen>
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 15,
-                color: Color(0xFF2D385E),
+                color: Theme.of(context).textTheme.bodyLarge?.color,
               ),
             ),
           ),
@@ -483,7 +482,7 @@ class _CaptureScreenState extends State<CaptureScreen>
               value,
               style: TextStyle(
                 fontSize: 15,
-                color: Colors.grey[700],
+                color: Theme.of(context).textTheme.bodyMedium?.color,
               ),
             ),
           ),

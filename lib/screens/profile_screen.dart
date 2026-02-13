@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../widgets/animated_button.dart';
+import '../widgets/responsive_wrapper.dart';
 
 class ProfileScreen extends StatefulWidget {
   @override
@@ -83,7 +84,7 @@ class _ProfileScreenState extends State<ProfileScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Foto de perfil actualizada'),
-          backgroundColor: Color(0xFF5258A4),
+          backgroundColor: Theme.of(context).colorScheme.primary,
         ),
       );
     }
@@ -92,32 +93,41 @@ class _ProfileScreenState extends State<ProfileScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Mi Perfil', style: TextStyle(fontWeight: FontWeight.bold)),
-        actions: [
-          IconButton(
-            icon: Icon(_isEditing ? Icons.save : Icons.edit),
-            onPressed: _isEditing ? _saveChanges : _toggleEdit,
+      body: Stack(
+        children: [
+          FadeTransition(
+            opacity: _fadeAnimation,
+            child: ResponsiveWrapper(
+              maxWidth: 900,
+              child: SingleChildScrollView(
+                padding: EdgeInsets.all(20.0),
+                child: Column(
+                  children: [
+                    ScaleTransition(
+                      scale: _scaleAnimation,
+                      child: _buildProfileHeader(),
+                    ),
+                    SizedBox(height: 32),
+                    _buildProfileForm(),
+                    SizedBox(height: 24),
+                    _buildStatisticsSection(),
+                    SizedBox(height: 80), // Space for FAB
+                  ],
+                ),
+              ),
+            ),
+          ),
+          // Floating Action Button for Edit/Save
+          Positioned(
+            bottom: 16,
+            right: 16,
+            child: FloatingActionButton(
+              onPressed: _isEditing ? _saveChanges : _toggleEdit,
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              child: Icon(_isEditing ? Icons.save : Icons.edit),
+            ),
           ),
         ],
-      ),
-      body: FadeTransition(
-        opacity: _fadeAnimation,
-        child: SingleChildScrollView(
-          padding: EdgeInsets.all(20.0),
-          child: Column(
-            children: [
-              ScaleTransition(
-                scale: _scaleAnimation,
-                child: _buildProfileHeader(),
-              ),
-              SizedBox(height: 32),
-              _buildProfileForm(),
-              SizedBox(height: 24),
-              _buildStatisticsSection(),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -130,14 +140,14 @@ class _ProfileScreenState extends State<ProfileScreen>
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color(0xFF2D385E),
-            Color(0xFF5258A4),
+            Theme.of(context).colorScheme.primary,
+            Theme.of(context).colorScheme.secondary,
           ],
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Color(0xFF5258A4).withOpacity(0.3),
+            color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
             blurRadius: 20,
             offset: Offset(0, 10),
           ),
@@ -151,7 +161,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: Colors.white,
+                    color: Theme.of(context).colorScheme.onPrimary,
                     width: 4,
                   ),
                   boxShadow: [
@@ -164,11 +174,11 @@ class _ProfileScreenState extends State<ProfileScreen>
                 ),
                 child: CircleAvatar(
                   radius: 60,
-                  backgroundColor: Colors.white,
+                  backgroundColor: Theme.of(context).colorScheme.surface,
                   child: Icon(
                     Icons.person,
                     size: 60,
-                    color: Color(0xFF5258A4),
+                    color: Theme.of(context).colorScheme.primary,
                   ),
                 ),
               ),
@@ -177,9 +187,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                 right: 0,
                 child: Container(
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Colors.white, Colors.white.withOpacity(0.9)],
-                    ),
+                    color: Theme.of(context).colorScheme.surface,
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
@@ -190,7 +198,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                     ],
                   ),
                   child: IconButton(
-                    icon: Icon(Icons.camera_alt, color: Color(0xFF5258A4)),
+                    icon: Icon(Icons.camera_alt, color: Theme.of(context).colorScheme.primary),
                     onPressed: _changeProfilePicture,
                   ),
                 ),
@@ -203,7 +211,7 @@ class _ProfileScreenState extends State<ProfileScreen>
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: Colors.white,
+              color: Theme.of(context).colorScheme.onPrimary,
             ),
           ),
           SizedBox(height: 4),
@@ -211,7 +219,7 @@ class _ProfileScreenState extends State<ProfileScreen>
             _emailController.text,
             style: TextStyle(
               fontSize: 14,
-              color: Colors.white.withOpacity(0.9),
+              color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.9),
             ),
           ),
         ],
@@ -228,7 +236,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF2D385E),
+            color: Theme.of(context).textTheme.headlineMedium?.color,
           ),
         ),
         SizedBox(height: 16),
@@ -270,18 +278,18 @@ class _ProfileScreenState extends State<ProfileScreen>
     return AnimatedContainer(
       duration: Duration(milliseconds: 300),
       decoration: BoxDecoration(
-        color: isEditing ? Colors.white : Colors.grey[50],
+        color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isEditing
-              ? Color(0xFF5258A4).withOpacity(0.3)
-              : Colors.grey[300]!,
+              ? Theme.of(context).colorScheme.primary.withOpacity(0.3)
+              : Theme.of(context).dividerColor,
           width: isEditing ? 2 : 1,
         ),
         boxShadow: isEditing
             ? [
                 BoxShadow(
-                  color: Color(0xFF5258A4).withOpacity(0.1),
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
                   blurRadius: 10,
                   offset: Offset(0, 4),
                 ),
@@ -292,15 +300,23 @@ class _ProfileScreenState extends State<ProfileScreen>
         controller: controller,
         decoration: InputDecoration(
           labelText: label,
+          floatingLabelBehavior: FloatingLabelBehavior.always,
           labelStyle: TextStyle(
-            color: isEditing ? Color(0xFF5258A4) : Colors.grey[600],
+            fontSize: 18,
+            fontWeight: FontWeight.w500,
+            color: isEditing ? Theme.of(context).colorScheme.primary : Theme.of(context).textTheme.bodyMedium?.color,
+          ),
+          floatingLabelStyle: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w500,
+            color: isEditing ? Theme.of(context).colorScheme.primary : Theme.of(context).textTheme.bodyMedium?.color,
           ),
           prefixIcon: Icon(
             icon,
-            color: isEditing ? Color(0xFF5258A4) : Colors.grey[600],
+            color: isEditing ? Theme.of(context).colorScheme.primary : Theme.of(context).textTheme.bodyMedium?.color,
           ),
           suffixIcon: !isEditing
-              ? Icon(Icons.lock, size: 18, color: Colors.grey[400])
+              ? Icon(Icons.lock, size: 18, color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5))
               : null,
           border: InputBorder.none,
           contentPadding: EdgeInsets.all(16),
@@ -315,18 +331,18 @@ class _ProfileScreenState extends State<ProfileScreen>
     return AnimatedContainer(
       duration: Duration(milliseconds: 300),
       decoration: BoxDecoration(
-        color: _isEditing ? Colors.white : Colors.grey[50],
+        color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: _isEditing
-              ? Color(0xFF5258A4).withOpacity(0.3)
-              : Colors.grey[300]!,
+              ? Theme.of(context).colorScheme.primary.withOpacity(0.3)
+              : Theme.of(context).dividerColor,
           width: _isEditing ? 2 : 1,
         ),
         boxShadow: _isEditing
             ? [
                 BoxShadow(
-                  color: Color(0xFF5258A4).withOpacity(0.1),
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
                   blurRadius: 10,
                   offset: Offset(0, 4),
                 ),
@@ -337,15 +353,23 @@ class _ProfileScreenState extends State<ProfileScreen>
         controller: _passwordController,
         decoration: InputDecoration(
           labelText: 'Contraseña',
+          floatingLabelBehavior: FloatingLabelBehavior.always,
           labelStyle: TextStyle(
-            color: _isEditing ? Color(0xFF5258A4) : Colors.grey[600],
+            fontSize: 18,
+            fontWeight: FontWeight.w500,
+            color: _isEditing ? Theme.of(context).colorScheme.primary : Theme.of(context).textTheme.bodyMedium?.color,
+          ),
+          floatingLabelStyle: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w500,
+            color: _isEditing ? Theme.of(context).colorScheme.primary : Theme.of(context).textTheme.bodyMedium?.color,
           ),
           prefixIcon: Icon(
             Icons.lock,
-            color: _isEditing ? Color(0xFF5258A4) : Colors.grey[600],
+            color: _isEditing ? Theme.of(context).colorScheme.primary : Theme.of(context).textTheme.bodyMedium?.color,
           ),
           suffixIcon: !_isEditing
-              ? Icon(Icons.lock, size: 18, color: Colors.grey[400])
+              ? Icon(Icons.lock, size: 18, color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5))
               : IconButton(
                   icon: Icon(Icons.visibility),
                   onPressed: () {},
@@ -368,7 +392,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF2D385E),
+            color: Theme.of(context).textTheme.headlineMedium?.color,
           ),
         ),
         SizedBox(height: 16),
@@ -423,7 +447,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     return Container(
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: color.withOpacity(0.2),
@@ -453,7 +477,7 @@ class _ProfileScreenState extends State<ProfileScreen>
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF2D385E),
+              color: Theme.of(context).textTheme.bodyLarge?.color,
             ),
           ),
           SizedBox(height: 4),
@@ -461,7 +485,7 @@ class _ProfileScreenState extends State<ProfileScreen>
             label,
             style: TextStyle(
               fontSize: 12,
-              color: Colors.grey[600],
+              color: Theme.of(context).textTheme.bodyMedium?.color,
             ),
           ),
         ],

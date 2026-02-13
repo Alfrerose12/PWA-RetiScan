@@ -1,16 +1,14 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'dart:math' as math;
 import 'login_screen.dart';
-import 'home_screen.dart';
 import '../services/auth_service.dart';
 
-class SplashScreen extends StatefulWidget {
+class LogoutScreen extends StatefulWidget {
   @override
-  _SplashScreenState createState() => _SplashScreenState();
+  _LogoutScreenState createState() => _LogoutScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen>
+class _LogoutScreenState extends State<LogoutScreen>
     with TickerProviderStateMixin {
   final AuthService _authService = AuthService();
   late AnimationController _logoFloatController;
@@ -23,15 +21,13 @@ class _SplashScreenState extends State<SplashScreen>
   void initState() {
     super.initState();
 
-
-
     _logoFloatController = AnimationController(
       duration: Duration(milliseconds: 3000),
       vsync: this,
     );
 
     _progressController = AnimationController(
-      duration: Duration(milliseconds: 2000),
+      duration: Duration(milliseconds: 1500),
       vsync: this,
     );
 
@@ -39,8 +35,6 @@ class _SplashScreenState extends State<SplashScreen>
       duration: Duration(milliseconds: 1400),
       vsync: this,
     );
-
-
 
     _logoFloatAnimation = Tween<double>(begin: 0.0, end: -8.0).animate(
       CurvedAnimation(parent: _logoFloatController, curve: Curves.easeInOut),
@@ -50,48 +44,42 @@ class _SplashScreenState extends State<SplashScreen>
       CurvedAnimation(parent: _progressController, curve: Curves.easeOut),
     );
 
-    _startAnimations();
+    _startLogoutProcess();
   }
 
-  void _startAnimations() async {
-
+  void _startLogoutProcess() async {
+    // Iniciar animaciones
     _logoFloatController.repeat(reverse: true);
     _dotsController.repeat();
 
-    await Future.delayed(Duration(milliseconds: 500));
+    await Future.delayed(Duration(milliseconds: 300));
     _progressController.forward();
 
-    await _authService.loadUserFromStorage();
+    // Ejecutar logout
+    await _authService.logout();
 
-    await Future.delayed(Duration(milliseconds: 2500));
-    _navigateToNextScreen();
+    // Esperar a que termine la animación
+    await Future.delayed(Duration(milliseconds: 1500));
+    _navigateToLogin();
   }
 
-  void _navigateToNextScreen() {
-    final isAuthenticated = _authService.isAuthenticated;
-
+  void _navigateToLogin() {
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            isAuthenticated ? HomeScreen() : LoginScreen(),
+        pageBuilder: (context, animation, secondaryAnimation) => LoginScreen(),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          const begin = Offset(1.0, 0.0);
-          const end = Offset.zero;
-          const curve = Curves.easeInOutCubic;
-          var tween = Tween(begin: begin, end: end).chain(
-            CurveTween(curve: curve),
+          return FadeTransition(
+            opacity: animation,
+            child: child,
           );
-          var offsetAnimation = animation.drive(tween);
-          return SlideTransition(position: offsetAnimation, child: child);
         },
-        transitionDuration: Duration(milliseconds: 800),
+        transitionDuration: Duration(milliseconds: 600),
       ),
     );
   }
 
   @override
   void dispose() {
-
     _logoFloatController.dispose();
     _progressController.dispose();
     _dotsController.dispose();
@@ -124,7 +112,6 @@ class _SplashScreenState extends State<SplashScreen>
             painter: StarfieldPainter(),
             size: Size.infinite,
           ),
-
 
           // Main Content
           Center(
@@ -322,7 +309,7 @@ class _SplashScreenState extends State<SplashScreen>
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'CARGANDO',
+                'CERRANDO SESIÓN',
                 style: TextStyle(
                   fontSize: 11,
                   color: Colors.white.withOpacity(0.7),
