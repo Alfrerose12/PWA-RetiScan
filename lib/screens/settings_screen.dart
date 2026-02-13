@@ -409,10 +409,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
         ListTile(
-          leading: Icon(Icons.exit_to_app, color: Colors.red),
+          leading: Icon(Icons.exit_to_app, color: Color(0xFFd4183d)),
           title: Text(
             'Cerrar Sesión',
-            style: TextStyle(color: Colors.red),
+            style: TextStyle(color: Color(0xFFd4183d)),
           ),
           onTap: () {
             Navigator.pushReplacement(

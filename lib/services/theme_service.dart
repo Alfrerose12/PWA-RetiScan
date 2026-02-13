@@ -16,16 +16,17 @@ class ThemeService extends ChangeNotifier {
         useMaterial3: true,
         brightness: Brightness.light,
         colorScheme: ColorScheme.light(
-          primary: Color(0xFF2D385E),
-          secondary: Color(0xFF5258A4),
-          surface: Colors.white,
-          background: Color(0xFFFFFFFF),
-          onPrimary: Colors.white,
-          onSecondary: Colors.white,
-          onSurface: Color(0xFF2B2C2E),
-          onBackground: Color(0xFF2B2C2E),
+          primary: Color(0xFF030213),        // Primary Dark
+          secondary: Color(0xFF2563EB),      // Azul Oscuro (Gradiente Hero)
+          surface: Color(0xFFFFFFFF),        // Background Light
+          background: Color(0xFFFFFFFF),     // Background Light
+          onPrimary: Color(0xFFFFFFFF),      // Primary Light
+          onSecondary: Color(0xFFFFFFFF),    // Primary Light
+          onSurface: Color(0xFF252525),      // Foreground Light
+          onBackground: Color(0xFF252525),   // Foreground Light
+          error: Color(0xFFd4183d),          // Destructive
         ),
-        primaryColor: Color(0xFF2D385E),
+        primaryColor: Color(0xFF030213),
         scaffoldBackgroundColor: Colors.white,
         fontFamily: 'Roboto',
         textTheme: TextTheme(
@@ -66,10 +67,10 @@ class ThemeService extends ChangeNotifier {
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: Color(0xFF2D385E),
+            backgroundColor: Color(0xFFf97316),  // Naranja (Botón de Acción)
             foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(10),  // Border Radius Base
             ),
             padding: EdgeInsets.symmetric(vertical: 12, horizontal: 24),
           ),
@@ -104,17 +105,18 @@ class ThemeService extends ChangeNotifier {
         useMaterial3: true,
         brightness: Brightness.dark,
         colorScheme: ColorScheme.dark(
-          primary: Color(0xFF5258A4),
-          secondary: Color(0xFF64C8FF),
-          surface: Color(0xFF1E1E1E),
-          background: Color(0xFF121212),
-          onPrimary: Colors.white,
-          onSecondary: Colors.black,
-          onSurface: Colors.white,
-          onBackground: Colors.white,
+          primary: Color(0xFF8b5cf6),        // Púrpura (Sidebar Primary)
+          secondary: Color(0xFF0EA5E9),      // Azul Claro (Gradiente Hero)
+          surface: Color(0xFF1f1f1f),        // Sidebar Background
+          background: Color(0xFF1a1a1a),     // Background Dark
+          onPrimary: Color(0xFFfafafa),      // Foreground Dark
+          onSecondary: Color(0xFF030213),    // Primary Dark
+          onSurface: Color(0xFFfafafa),      // Foreground Dark
+          onBackground: Color(0xFFfafafa),   // Foreground Dark
+          error: Color(0xFFd4183d),          // Destructive
         ),
-        primaryColor: Color(0xFF5258A4),
-        scaffoldBackgroundColor: Color(0xFF121212),
+        primaryColor: Color(0xFF8b5cf6),
+        scaffoldBackgroundColor: Color(0xFF1a1a1a),
         fontFamily: 'Roboto',
         textTheme: TextTheme(
           headlineLarge: TextStyle(
@@ -141,13 +143,13 @@ class ThemeService extends ChangeNotifier {
           ),
         ),
         appBarTheme: AppBarTheme(
-          backgroundColor: Color(0xFF1E1E1E),
-          foregroundColor: Colors.white,
+          backgroundColor: Color(0xFF1f1f1f),
+          foregroundColor: Color(0xFFfafafa),
           elevation: 0,
-          iconTheme: IconThemeData(color: Color(0xFF64C8FF)),
+          iconTheme: IconThemeData(color: Color(0xFF0EA5E9)),
         ),
         cardTheme: CardThemeData(
-          color: Color(0xFF1E1E1E),
+          color: Color(0xFF1f1f1f),
           elevation: 4,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -155,10 +157,10 @@ class ThemeService extends ChangeNotifier {
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: Color(0xFF5258A4),
+            backgroundColor: Color(0xFFf97316),  // Naranja (Botón de Acción)
             foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(10),  // Border Radius Base
             ),
             padding: EdgeInsets.symmetric(vertical: 12, horizontal: 24),
           ),
