@@ -75,18 +75,58 @@ class AuthService {
     }
   }
 
+  /// Solicitar código 2FA → POST /auth/2fa/send
+  /// Retorna el código generado (visible en desarrollo) o null si falla.
+  Future<String?> request2FA() async {
+    final token = _token;
+    if (token == null) return null;
+    try {
+      final uri = Uri.parse('${ApiConfig.baseUrl}/auth/2fa/send');
+      final res = await http.post(
+        uri,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (res.statusCode == 200 || res.statusCode == 201) {
+        final body = jsonDecode(res.body) as Map<String, dynamic>;
+        return body['code']?.toString();
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Verificar código 2FA → POST /auth/2fa/verify
+  Future<bool> verify2FA(String code) async {
+    final token = _token;
+    if (token == null) return false;
+    try {
+      final uri = Uri.parse('${ApiConfig.baseUrl}/auth/2fa/verify');
+      final res = await http.post(
+        uri,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({'code': code}),
+      );
+      return res.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Register → POST /users/register
   Future<Map<String, dynamic>> register({
     required String email,
     required String password,
-    required String role,
   }) async {
     try {
       final uri = Uri.parse('${ApiConfig.baseUrl}/users/register');
       final res = await http.post(
         uri,
         headers: ApiConfig.jsonHeaders,
-        body: jsonEncode({'email': email, 'password': password, 'role': role}),
+        body: jsonEncode({'email': email, 'password': password}),
       );
 
       final body = jsonDecode(res.body) as Map<String, dynamic>;

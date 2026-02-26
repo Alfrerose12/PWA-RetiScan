@@ -93,7 +93,7 @@ class _LoginScreenState extends State<LoginScreen>
       setState(() => _isLoading = false);
 
       if (result['success'] == true) {
-        // Navegar a la pantalla de carga animada (igual que logout)
+        // Navegar a la pantalla de carga animada
         Navigator.pushReplacement(
           context,
           PageRouteBuilder(

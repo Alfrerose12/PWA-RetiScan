@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
-import 'login_screen.dart';
-import 'home_screen.dart';
+import 'two_factor_screen.dart';
 import '../widgets/glassmorphic_card.dart';
 import '../widgets/animated_button.dart';
 import '../services/auth_service.dart';
@@ -21,7 +20,7 @@ class _RegisterScreenState extends State<RegisterScreen>
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _isLoading = false;
-  String _selectedRole = 'PACIENTE';
+
   late AnimationController _slideController;
   late Animation<Offset> _slideAnimation;
   late AnimationController _fadeController;
@@ -102,23 +101,27 @@ class _RegisterScreenState extends State<RegisterScreen>
       final result = await _authService.register(
         email: _emailController.text.trim(),
         password: _passwordController.text,
-        role: _selectedRole,
       );
 
       setState(() => _isLoading = false);
 
       if (result['success'] == true) {
-        // Registro exitoso → ir a login para que ingrese credenciales
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Cuenta creada. ¡Inicia sesión!'),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10)),
+        // Registro exitoso → verificar correo con 2FA
+        Navigator.pushReplacement(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) =>
+                TwoFactorScreen(
+              userEmail: _emailController.text.trim(),
+              afterRegister: true,
+            ),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+            transitionDuration: Duration(milliseconds: 400),
           ),
         );
-        Navigator.pop(context); // volver a login
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -278,8 +281,6 @@ class _RegisterScreenState extends State<RegisterScreen>
       padding: EdgeInsets.all(28),
       child: Column(
         children: [
-          _buildRoleSelector(),
-          SizedBox(height: 20),
           _buildTextField(
             controller: _emailController,
             label: 'Correo electrónico',
@@ -317,81 +318,6 @@ class _RegisterScreenState extends State<RegisterScreen>
     );
   }
 
-  Widget _buildRoleSelector() {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0.0, end: 1.0),
-      duration: Duration(milliseconds: 400),
-      builder: (context, value, child) {
-        return Transform.translate(
-          offset: Offset(0, 20 * (1 - value)),
-          child: Opacity(opacity: value, child: child),
-        );
-      },
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Tipo de cuenta',
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.9),
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          SizedBox(height: 12),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: Colors.white.withOpacity(0.3),
-                width: 1.5,
-              ),
-            ),
-            child: Row(
-              children: [
-                Expanded(child: _buildRoleOption('Paciente', Icons.person_outline, 'PACIENTE')),
-                Expanded(child: _buildRoleOption('Médico', Icons.medical_services_outlined, 'MEDICO')),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRoleOption(String label, IconData icon, String role) {
-    final isSelected = _selectedRole == role;
-    return GestureDetector(
-      onTap: () => setState(() => _selectedRole = role),
-      child: AnimatedContainer(
-        duration: Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-        padding: EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.transparent,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: isSelected
-              ? [BoxShadow(color: Colors.white.withOpacity(0.3), blurRadius: 10, offset: Offset(0, 4))]
-              : [],
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: isSelected ? Color(0xFF2563EB) : Colors.white.withOpacity(0.7), size: 28),
-            SizedBox(height: 8),
-            Text(
-              label,
-              style: TextStyle(
-                color: isSelected ? Color(0xFF2563EB) : Colors.white.withOpacity(0.7),
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                fontSize: 14,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildTextField({
     required TextEditingController controller,
