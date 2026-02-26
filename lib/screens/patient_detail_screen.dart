@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 import '../models/patient.dart';
+import '../services/patient_service.dart';
 
 class PatientDetailScreen extends StatefulWidget {
   final Patient patient;
+  final void Function(Patient)? onSave;
 
-  const PatientDetailScreen({Key? key, required this.patient}) : super(key: key);
+  const PatientDetailScreen({
+    Key? key,
+    required this.patient,
+    this.onSave,
+  }) : super(key: key);
 
   @override
   _PatientDetailScreenState createState() => _PatientDetailScreenState();
@@ -12,89 +18,109 @@ class PatientDetailScreen extends StatefulWidget {
 
 class _PatientDetailScreenState extends State<PatientDetailScreen>
     with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
+  late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
+  final PatientService _patientService = PatientService();
 
-  // Datos de prueba simples - sin usar clases personalizadas
-  final List<Map<String, dynamic>> recentAnalyses = [
-    {
-      'date': '15/11/2024',
-      'status': 'Normal',
-      'notes': 'Sin anomalías detectadas',
-    },
-    {
-      'date': '01/11/2024',
-      'status': 'Normal',
-      'notes': 'Retina saludable',
-    },
-    {
-      'date': '15/10/2024',
-      'status': 'Leve',
-      'notes': 'Ligera inflamación',
-    },
-  ];
+  late Patient _patient;
+  bool _editingPersonal = false;
+  bool _saving = false;
+
+  late TextEditingController _nameCtrl;
+  late TextEditingController _ageCtrl;
+  late TextEditingController _phoneCtrl;
+  final _personalKey = GlobalKey<FormState>();
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
+    _patient = widget.patient;
+    _fadeController = AnimationController(
       duration: Duration(milliseconds: 800),
       vsync: this,
     );
-    _fadeAnimation = CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeIn,
-    );
-    _controller.forward();
+    _fadeAnimation = CurvedAnimation(parent: _fadeController, curve: Curves.easeIn);
+    _fadeController.forward();
+    _resetControllers();
+  }
+
+  void _resetControllers() {
+    _nameCtrl = TextEditingController(text: _patient.fullName);
+    _ageCtrl = TextEditingController(text: _patient.age.toString());
+    _phoneCtrl = TextEditingController(text: _patient.phone ?? '');
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _fadeController.dispose();
+    _nameCtrl.dispose();
+    _ageCtrl.dispose();
+    _phoneCtrl.dispose();
     super.dispose();
   }
 
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'Normal':
-        return Colors.green;
-      case 'Leve':
-        return Colors.orange;
-      case 'Moderado':
-        return Colors.deepOrange;
-      case 'Severo':
-        return Colors.red;
-      default:
-        return Colors.grey;
+  Future<void> _savePersonal() async {
+    if (!(_personalKey.currentState?.validate() ?? false)) return;
+    setState(() => _saving = true);
+    try {
+      final updated = await _patientService.updatePatient(_patient.id, {
+        'fullName': _nameCtrl.text.trim(),
+        'age': int.parse(_ageCtrl.text.trim()),
+        if (_phoneCtrl.text.trim().isNotEmpty) 'phone': _phoneCtrl.text.trim(),
+      });
+      setState(() {
+        _patient = updated;
+        _editingPersonal = false;
+        _saving = false;
+      });
+      widget.onSave?.call(_patient);
+      _showSnack('Datos actualizados correctamente');
+    } catch (e) {
+      setState(() => _saving = false);
+      _showSnack(e.toString().replaceAll('Exception: ', ''), isError: true);
     }
+  }
+
+  void _showSnack(String msg, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: isError ? Colors.red : Color(0xFF2563EB),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  String _formatDate(DateTime? date) {
+    if (date == null) return '—';
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          'Detalles del Paciente',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
+        title: Text('Detalles del Paciente',
+            style: TextStyle(fontWeight: FontWeight.bold)),
       ),
       body: FadeTransition(
         opacity: _fadeAnimation,
         child: Center(
           child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: 800),
+            constraints: BoxConstraints(maxWidth: 900),
             child: SingleChildScrollView(
-              padding: EdgeInsets.all(20.0),
+              padding: EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildPatientHeader(),
                   SizedBox(height: 24),
-                  _buildPatientInfo(),
+                  _buildPersonalSection(),
                   SizedBox(height: 24),
-                  _buildAnalysisTimeline(),
+                  _buildStatsSection(),
                   SizedBox(height: 24),
-                  _buildNotesSection(),
                 ],
               ),
             ),
@@ -105,8 +131,6 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
   }
 
   Widget _buildPatientHeader() {
-    final statusColor = _getStatusColor(widget.patient.status);
-
     return Container(
       padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -121,10 +145,130 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Color(0xFF5258A4).withOpacity(0.3),
+            color: Color(0xFF2563EB).withOpacity(0.3),
             blurRadius: 15,
             offset: Offset(0, 8),
           ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.person, color: Colors.white, size: 32),
+          ),
+          SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _patient.fullName,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  '${_patient.age} años • ${_patient.totalAnalyses} análisis',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: 14,
+                  ),
+                ),
+                if (_patient.lastVisit != null) ...[
+                  SizedBox(height: 4),
+                  Text(
+                    'Última visita: ${_formatDate(_patient.lastVisit)}',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.8),
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPersonalSection() {
+    return _sectionCard(
+      title: 'Información del Paciente',
+      icon: Icons.person_outline,
+      isEditing: _editingPersonal,
+      onEdit: () {
+        _resetControllers();
+        setState(() => _editingPersonal = true);
+      },
+      onCancel: () => setState(() => _editingPersonal = false),
+      onSave: _saving ? () {} : _savePersonal,
+      viewContent: LayoutBuilder(
+        builder: (context, constraints) {
+          final isWide = constraints.maxWidth > 500;
+          return Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              _infoChip('Edad', '${_patient.age} años', Icons.cake, constraints, isWide),
+              _infoChip('Teléfono', _patient.phone ?? 'No registrado', Icons.phone, constraints, isWide),
+              _infoChip('Total Análisis', '${_patient.totalAnalyses}', Icons.analytics, constraints, isWide),
+              _infoChip('Última Visita', _formatDate(_patient.lastVisit), Icons.calendar_today, constraints, isWide),
+            ],
+          );
+        },
+      ),
+      editContent: Form(
+        key: _personalKey,
+        child: Column(
+          children: [
+            _editField(_nameCtrl, 'Nombre completo', Icons.badge_outlined,
+                validator: (v) =>
+                    (v == null || v.trim().isEmpty) ? 'Campo requerido' : null),
+            SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _editField(_ageCtrl, 'Edad', Icons.cake_outlined,
+                      keyboardType: TextInputType.number,
+                      validator: (v) {
+                        final n = int.tryParse(v ?? '');
+                        if (n == null || n < 0 || n > 120) return 'Edad inválida';
+                        return null;
+                      }),
+                ),
+                SizedBox(width: 12),
+                Expanded(
+                  child: _editField(_phoneCtrl, 'Teléfono', Icons.phone_outlined,
+                      keyboardType: TextInputType.phone),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatsSection() {
+    return Container(
+      padding: EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardTheme.color,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: Offset(0, 4))
         ],
       ),
       child: Column(
@@ -133,161 +277,76 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
           Row(
             children: [
               Container(
-                padding: EdgeInsets.all(16),
+                padding: EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.2),
-                  shape: BoxShape.circle,
+                  color: Color(0xFF2563EB).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(
-                  Icons.person,
-                  color: Theme.of(context).colorScheme.onPrimary,
-                  size: 32,
+                child: Icon(Icons.analytics_outlined, size: 18, color: Color(0xFF2563EB)),
+              ),
+              SizedBox(width: 10),
+              Text('Estadísticas', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _statChip(
+                  label: 'Total Análisis',
+                  value: _patient.totalAnalyses.toString(),
+                  icon: Icons.biotech_outlined,
+                  color: Colors.blue,
                 ),
               ),
-              SizedBox(width: 16),
+              SizedBox(width: 12),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.patient.fullName,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onPrimary,
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      widget.patient.email,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.9),
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
+                child: _statChip(
+                  label: 'Última visita',
+                  value: _formatDate(_patient.lastVisit),
+                  icon: Icons.calendar_today_outlined,
+                  color: Colors.purple,
                 ),
               ),
             ],
           ),
-          SizedBox(height: 16),
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: statusColor,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              'Estado: ${widget.patient.status}',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onPrimary,
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-              ),
-            ),
-          ),
         ],
       ),
     );
   }
 
-  Widget _buildPatientInfo() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Información del Paciente',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Theme.of(context).textTheme.bodyLarge?.color,
-          ),
-        ),
-        SizedBox(height: 16),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final isWide = constraints.maxWidth > 600;
-            return Wrap(
-              spacing: 16,
-              runSpacing: 16,
-              children: [
-                SizedBox(
-                  width: isWide ? (constraints.maxWidth - 16) / 2 : constraints.maxWidth,
-                  child: _buildInfoCard('Edad', '${widget.patient.age} años', Icons.cake),
-                ),
-                SizedBox(
-                  width: isWide ? (constraints.maxWidth - 16) / 2 : constraints.maxWidth,
-                  child: _buildInfoCard('Teléfono', widget.patient.phone ?? 'No registrado', Icons.phone),
-                ),
-                SizedBox(
-                  width: isWide ? (constraints.maxWidth - 16) / 2 : constraints.maxWidth,
-                  child: _buildInfoCard('Total Análisis', '${widget.patient.totalAnalyses}', Icons.analytics),
-                ),
-                SizedBox(
-                  width: isWide ? (constraints.maxWidth - 16) / 2 : constraints.maxWidth,
-                  child: _buildInfoCard('Última Visita', _formatDate(widget.patient.lastVisit), Icons.calendar_today),
-                ),
-              ],
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildInfoCard(String label, String value, IconData icon) {
+  Widget _statChip({
+    required String label,
+    required String value,
+    required IconData icon,
+    required Color color,
+  }) {
     return Container(
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardTheme.color,
+        color: color.withOpacity(0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Color(0xFF5258A4).withOpacity(0.2),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: Offset(0, 4),
-          ),
-        ],
+        border: Border.all(color: color.withOpacity(0.2)),
       ),
       child: Row(
         children: [
-          Container(
-            padding: EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Color(0xFF5258A4).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              icon,
-              color: Color(0xFF5258A4),
-              size: 24,
-            ),
-          ),
+          Icon(icon, color: color, size: 24),
           SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).textTheme.bodyLarge?.color,
-                  ),
-                ),
+                Text(label,
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.color
+                            ?.withOpacity(0.6))),
+                SizedBox(height: 2),
+                Text(value,
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
               ],
             ),
           ),
@@ -296,161 +355,216 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
     );
   }
 
-  Widget _buildAnalysisTimeline() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Análisis Recientes',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Theme.of(context).textTheme.bodyLarge?.color,
-          ),
-        ),
-        SizedBox(height: 16),
-        ...recentAnalyses.map((analysis) => _buildTimelineItem(analysis)),
-      ],
-    );
-  }
-
-  Widget _buildTimelineItem(Map<String, dynamic> analysis) {
-    final statusColor = _getStatusColor(analysis['status']);
-
+  Widget _sectionCard({
+    required String title,
+    required IconData icon,
+    required bool isEditing,
+    required VoidCallback onEdit,
+    required VoidCallback onCancel,
+    required VoidCallback onSave,
+    required Widget viewContent,
+    required Widget editContent,
+  }) {
     return Container(
-      margin: EdgeInsets.only(bottom: 16),
-      padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Theme.of(context).cardTheme.color,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: statusColor.withOpacity(0.2),
-          width: 1,
-        ),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: Offset(0, 4),
-          ),
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: Offset(0, 4))
         ],
+        border: isEditing
+            ? Border.all(color: Color(0xFF2563EB).withOpacity(0.4), width: 1.5)
+            : null,
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 4,
-            height: 60,
-            decoration: BoxDecoration(
-              color: statusColor,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          SizedBox(width: 16),
-          Expanded(
-            child: Column(
+      child: Padding(
+        padding: EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      analysis['date'],
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: Theme.of(context).textTheme.bodyLarge?.color,
-                      ),
-                    ),
                     Container(
-                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
+                        color: Color(0xFF2563EB).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Text(
-                        analysis['status'],
-                        style: TextStyle(
-                          color: statusColor,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
+                      child: Icon(icon, size: 18, color: Color(0xFF2563EB)),
+                    ),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(title,
+                          style: TextStyle(
+                              fontSize: 17, fontWeight: FontWeight.bold)),
+                    ),
+                    if (!isEditing)
+                      Tooltip(
+                        message: 'Editar',
+                        child: InkWell(
+                          onTap: onEdit,
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Color(0xFF2563EB).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.edit_outlined,
+                                    size: 16, color: Color(0xFF2563EB)),
+                                SizedBox(width: 4),
+                                Text('Editar',
+                                    style: TextStyle(
+                                        color: Color(0xFF2563EB),
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600)),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
-                    ),
                   ],
                 ),
-                SizedBox(height: 8),
-                Text(
-                  analysis['notes'],
-                  style: TextStyle(
-                    color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
-                    fontSize: 14,
+                if (isEditing) ...[
+                  SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: onCancel,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor:
+                                Theme.of(context).textTheme.bodyMedium?.color,
+                            side: BorderSide(
+                                color: Theme.of(context).dividerColor),
+                            padding: EdgeInsets.symmetric(vertical: 10),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: Text('Cancelar'),
+                        ),
+                      ),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _saving ? null : onSave,
+                          icon: _saving
+                              ? SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2, color: Colors.white))
+                              : Icon(Icons.check, size: 16),
+                          label: Text(_saving ? 'Guardando...' : 'Guardar'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Color(0xFF2563EB),
+                            foregroundColor: Colors.white,
+                            padding: EdgeInsets.symmetric(vertical: 10),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8)),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
+                ],
               ],
             ),
-          ),
-        ],
+            SizedBox(height: 16),
+            AnimatedSwitcher(
+              duration: Duration(milliseconds: 250),
+              child: isEditing
+                  ? KeyedSubtree(
+                      key: ValueKey('edit_$title'), child: editContent)
+                  : KeyedSubtree(
+                      key: ValueKey('view_$title'), child: viewContent),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildNotesSection() {
-    final patientNotes = widget.patient.notes ?? '';
-    
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget _infoChip(String label, String value, IconData icon,
+      BoxConstraints constraints, bool isWide) {
+    return SizedBox(
+      width: isWide ? (constraints.maxWidth - 12) / 2 : constraints.maxWidth,
+      child: Container(
+        padding: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Theme.of(context).colorScheme.surface
+              : Colors.grey[50],
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Color(0xFF2563EB).withOpacity(0.15)),
+        ),
+        child: Row(
           children: [
-            Text(
-              'Notas del Médico',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).textTheme.bodyLarge?.color,
+            Container(
+              padding: EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Color(0xFF2563EB).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
               ),
+              child: Icon(icon, color: Color(0xFF2563EB), size: 20),
             ),
-            IconButton(
-              icon: Icon(Icons.edit, color: Color(0xFF5258A4)),
-              onPressed: () {
-                // Implementar edición de notas
-              },
+            SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label,
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.color
+                              ?.withOpacity(0.6))),
+                  SizedBox(height: 3),
+                  Text(value,
+                      style:
+                          TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                ],
+              ),
             ),
           ],
         ),
-        SizedBox(height: 16),
-        Container(
-          width: double.infinity,
-          padding: EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Theme.of(context).brightness == Brightness.dark
-                ? Theme.of(context).colorScheme.surface
-                : Colors.grey[100],
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? Theme.of(context).colorScheme.onSurface.withOpacity(0.2)
-                  : Colors.grey[300]!,
-              width: 1,
-            ),
-          ),
-          child: Text(
-            patientNotes.isEmpty
-                ? 'No hay notas registradas para este paciente.'
-                : patientNotes,
-            style: TextStyle(
-              color: Theme.of(context).textTheme.bodyMedium?.color,
-              fontSize: 14,
-              height: 1.5,
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
+  Widget _editField(
+    TextEditingController ctrl,
+    String label,
+    IconData icon, {
+    TextInputType? keyboardType,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: ctrl,
+      keyboardType: keyboardType,
+      validator: validator,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, color: Color(0xFF2563EB), size: 20),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: Color(0xFF2563EB), width: 2),
+        ),
+        contentPadding:
+            EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      ),
+    );
   }
 }

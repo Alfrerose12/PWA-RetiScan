@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import '../widgets/animated_button.dart';
 import '../widgets/responsive_wrapper.dart';
+import '../services/auth_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   @override
@@ -10,12 +10,14 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen>
     with SingleTickerProviderStateMixin {
-  final _nameController = TextEditingController(text: 'Juan Pérez');
-  final _ageController = TextEditingController(text: '45');
-  final _emailController = TextEditingController(text: 'juan.perez@email.com');
-  final _passwordController = TextEditingController(text: 'password123');
+  final AuthService _authService = AuthService();
+  late TextEditingController _emailController;
+  final _newPasswordController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
 
   bool _isEditing = false;
+  bool _isSaving = false;
+  bool _obscurePassword = true;
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
@@ -23,6 +25,9 @@ class _ProfileScreenState extends State<ProfileScreen>
   @override
   void initState() {
     super.initState();
+    _emailController = TextEditingController(
+      text: _authService.currentUser?.email ?? '',
+    );
     _controller = AnimationController(
       duration: Duration(milliseconds: 600),
       vsync: this,
@@ -42,56 +47,57 @@ class _ProfileScreenState extends State<ProfileScreen>
   @override
   void dispose() {
     _controller.dispose();
-    _nameController.dispose();
-    _ageController.dispose();
     _emailController.dispose();
-    _passwordController.dispose();
+    _newPasswordController.dispose();
     super.dispose();
   }
 
   void _toggleEdit() {
     setState(() {
       _isEditing = !_isEditing;
+      if (!_isEditing) {
+        // cancelar: restaurar email original
+        _emailController.text = _authService.currentUser?.email ?? '';
+        _newPasswordController.clear();
+      }
     });
   }
 
-  void _saveChanges() {
+  Future<void> _saveChanges() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _isSaving = true);
+
+    final result = await _authService.updateProfile(
+      email: _emailController.text.trim(),
+      password: _newPasswordController.text.isNotEmpty
+          ? _newPasswordController.text
+          : null,
+    );
+
     setState(() {
-      _isEditing = false;
+      _isSaving = false;
+      if (result['success'] == true) {
+        _isEditing = false;
+        _newPasswordController.clear();
+      }
     });
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.check_circle, color: Colors.white),
-            SizedBox(width: 12),
-            Text('Cambios guardados exitosamente'),
-          ],
-        ),
-        backgroundColor: Colors.green,
+        content: Text(result['success'] == true
+            ? 'Perfil actualizado correctamente'
+            : (result['message'] ?? 'Error al guardar')),
+        backgroundColor: result['success'] == true ? Colors.green : Colors.red,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
 
-  Future<void> _changeProfilePicture() async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Foto de perfil actualizada'),
-          backgroundColor: Theme.of(context).colorScheme.primary,
-        ),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    final user = _authService.currentUser;
     return Scaffold(
       body: Stack(
         children: [
@@ -101,31 +107,60 @@ class _ProfileScreenState extends State<ProfileScreen>
               maxWidth: 900,
               child: SingleChildScrollView(
                 padding: EdgeInsets.all(20.0),
-                child: Column(
-                  children: [
-                    ScaleTransition(
-                      scale: _scaleAnimation,
-                      child: _buildProfileHeader(),
-                    ),
-                    SizedBox(height: 32),
-                    _buildProfileForm(),
-                    SizedBox(height: 24),
-                    _buildStatisticsSection(),
-                    SizedBox(height: 80), // Space for FAB
-                  ],
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    children: [
+                      ScaleTransition(
+                        scale: _scaleAnimation,
+                        child: _buildProfileHeader(),
+                      ),
+                      SizedBox(height: 32),
+                      _buildProfileForm(),
+                      SizedBox(height: 24),
+                      _buildRoleCard(user?.role ?? '—'),
+                      SizedBox(height: 80),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
-          // Floating Action Button for Edit/Save
           Positioned(
             bottom: 16,
             right: 16,
-            child: FloatingActionButton(
-              onPressed: _isEditing ? _saveChanges : _toggleEdit,
-              backgroundColor: Theme.of(context).colorScheme.primary,
-              child: Icon(_isEditing ? Icons.save : Icons.edit),
-            ),
+            child: _isEditing
+                ? Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      FloatingActionButton.extended(
+                        heroTag: 'cancel',
+                        onPressed: _toggleEdit,
+                        backgroundColor: Colors.grey[700],
+                        icon: Icon(Icons.close),
+                        label: Text('Cancelar'),
+                      ),
+                      SizedBox(width: 12),
+                      FloatingActionButton.extended(
+                        heroTag: 'save',
+                        onPressed: _isSaving ? null : _saveChanges,
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        icon: _isSaving
+                            ? SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white))
+                            : Icon(Icons.save),
+                        label: Text(_isSaving ? 'Guardando...' : 'Guardar'),
+                      ),
+                    ],
+                  )
+                : FloatingActionButton(
+                    onPressed: _toggleEdit,
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    child: Icon(Icons.edit),
+                  ),
           ),
         ],
       ),
@@ -133,6 +168,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Widget _buildProfileHeader() {
+    final email = _authService.currentUser?.email ?? '';
     return Container(
       padding: EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -155,71 +191,22 @@ class _ProfileScreenState extends State<ProfileScreen>
       ),
       child: Column(
         children: [
-          Stack(
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: Theme.of(context).colorScheme.onPrimary,
-                    width: 4,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      blurRadius: 15,
-                      offset: Offset(0, 5),
-                    ),
-                  ],
-                ),
-                child: CircleAvatar(
-                  radius: 60,
-                  backgroundColor: Theme.of(context).colorScheme.surface,
-                  child: Icon(
-                    Icons.person,
-                    size: 60,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-              ),
-              Positioned(
-                bottom: 0,
-                right: 0,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surface,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
-                        blurRadius: 8,
-                        offset: Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: IconButton(
-                    icon: Icon(Icons.camera_alt, color: Theme.of(context).colorScheme.primary),
-                    onPressed: _changeProfilePicture,
-                  ),
-                ),
-              ),
-            ],
+          CircleAvatar(
+            radius: 60,
+            backgroundColor: Theme.of(context).colorScheme.surface,
+            child: Icon(
+              Icons.person,
+              size: 60,
+              color: Theme.of(context).colorScheme.primary,
+            ),
           ),
           SizedBox(height: 16),
           Text(
-            _nameController.text,
+            email,
             style: TextStyle(
-              fontSize: 24,
+              fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Theme.of(context).colorScheme.onPrimary,
-            ),
-          ),
-          SizedBox(height: 4),
-          Text(
-            _emailController.text,
-            style: TextStyle(
-              fontSize: 14,
-              color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.9),
             ),
           ),
         ],
@@ -232,7 +219,7 @@ class _ProfileScreenState extends State<ProfileScreen>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Información Personal',
+          'Información de Cuenta',
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
@@ -241,26 +228,16 @@ class _ProfileScreenState extends State<ProfileScreen>
         ),
         SizedBox(height: 16),
         _buildEditableField(
-          label: 'Nombre Completo',
-          controller: _nameController,
-          icon: Icons.person,
-          isEditing: _isEditing,
-        ),
-        SizedBox(height: 16),
-        _buildEditableField(
-          label: 'Edad',
-          controller: _ageController,
-          icon: Icons.calendar_today,
-          isEditing: _isEditing,
-          keyboardType: TextInputType.number,
-        ),
-        SizedBox(height: 16),
-        _buildEditableField(
           label: 'Correo Electrónico',
           controller: _emailController,
           icon: Icons.email,
           isEditing: _isEditing,
           keyboardType: TextInputType.emailAddress,
+          validator: (v) {
+            if (v == null || v.isEmpty) return 'Campo requerido';
+            if (!v.contains('@')) return 'Email inválido';
+            return null;
+          },
         ),
         SizedBox(height: 16),
         _buildPasswordField(),
@@ -274,6 +251,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     required IconData icon,
     required bool isEditing,
     TextInputType keyboardType = TextInputType.text,
+    String? Function(String?)? validator,
   }) {
     return AnimatedContainer(
       duration: Duration(milliseconds: 300),
@@ -298,6 +276,7 @@ class _ProfileScreenState extends State<ProfileScreen>
       ),
       child: TextFormField(
         controller: controller,
+        validator: validator,
         decoration: InputDecoration(
           labelText: label,
           floatingLabelBehavior: FloatingLabelBehavior.always,
@@ -350,9 +329,9 @@ class _ProfileScreenState extends State<ProfileScreen>
             : [],
       ),
       child: TextFormField(
-        controller: _passwordController,
+        controller: _newPasswordController,
         decoration: InputDecoration(
-          labelText: 'Contraseña',
+          labelText: _isEditing ? 'Nueva Contraseña (opcional)' : 'Contraseña',
           floatingLabelBehavior: FloatingLabelBehavior.always,
           labelStyle: TextStyle(
             fontSize: 18,
@@ -368,128 +347,71 @@ class _ProfileScreenState extends State<ProfileScreen>
             Icons.lock,
             color: _isEditing ? Theme.of(context).colorScheme.primary : Theme.of(context).textTheme.bodyMedium?.color,
           ),
-          suffixIcon: !_isEditing
-              ? Icon(Icons.lock, size: 18, color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5))
-              : IconButton(
-                  icon: Icon(Icons.visibility),
-                  onPressed: () {},
-                ),
+          suffixIcon: _isEditing
+              ? IconButton(
+                  icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
+                  onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                )
+              : Icon(Icons.lock, size: 18, color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5)),
           border: InputBorder.none,
           contentPadding: EdgeInsets.all(16),
         ),
         readOnly: !_isEditing,
-        obscureText: true,
+        obscureText: _obscurePassword,
+        validator: (v) {
+          if (v != null && v.isNotEmpty && v.length < 6) {
+            return 'Mínimo 6 caracteres';
+          }
+          return null;
+        },
       ),
     );
   }
 
-  Widget _buildStatisticsSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Estadísticas',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Theme.of(context).textTheme.headlineMedium?.color,
-          ),
-        ),
-        SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: _buildStatCard(
-                'Análisis',
-                '12',
-                Icons.analytics,
-                Colors.blue,
-              ),
-            ),
-            SizedBox(width: 12),
-            Expanded(
-              child: _buildStatCard(
-                'Normal',
-                '10',
-                Icons.check_circle,
-                Colors.green,
-              ),
-            ),
-          ],
-        ),
-        SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _buildStatCard(
-                'Alertas',
-                '2',
-                Icons.warning,
-                Colors.orange,
-              ),
-            ),
-            SizedBox(width: 12),
-            Expanded(
-              child: _buildStatCard(
-                'Días',
-                '45',
-                Icons.calendar_month,
-                Colors.purple,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatCard(String label, String value, IconData icon, Color color) {
+  Widget _buildRoleCard(String role) {
+    final isDoctor = role == 'MEDICO';
     return Container(
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: color.withOpacity(0.2),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: color.withOpacity(0.1),
-            blurRadius: 10,
-            offset: Offset(0, 4),
-          ),
-        ],
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
-      child: Column(
+      child: Row(
         children: [
           Container(
             padding: EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: (isDoctor ? Colors.blue : Colors.green).withOpacity(0.1),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: color, size: 24),
-          ),
-          SizedBox(height: 12),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Theme.of(context).textTheme.bodyLarge?.color,
+            child: Icon(
+              isDoctor ? Icons.medical_services_outlined : Icons.person_outline,
+              color: isDoctor ? Colors.blue : Colors.green,
+              size: 24,
             ),
           ),
-          SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: Theme.of(context).textTheme.bodyMedium?.color,
-            ),
+          SizedBox(width: 16),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Rol asignado',
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.6))),
+              Text(
+                isDoctor ? 'Médico' : 'Paciente',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: isDoctor ? Colors.blue : Colors.green,
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
+
 }

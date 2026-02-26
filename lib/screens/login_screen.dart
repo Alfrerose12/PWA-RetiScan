@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'dart:math' as math;
 import 'register_screen.dart';
-import 'home_screen.dart';
+import 'login_loading_screen.dart';
 import '../widgets/glassmorphic_card.dart';
 import '../widgets/animated_button.dart';
 import '../services/auth_service.dart';
@@ -83,55 +83,41 @@ class _LoginScreenState extends State<LoginScreen>
   Future<void> _login() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
-      
-      final success = await _authService.login(
-        _emailController.text,
+
+      final result = await _authService.login(
+        _emailController.text.trim(),
         _passwordController.text,
       );
 
+      if (!mounted) return;
       setState(() => _isLoading = false);
 
-      if (success) {
+      if (result['success'] == true) {
+        // Navegar a la pantalla de carga animada (igual que logout)
         Navigator.pushReplacement(
           context,
           PageRouteBuilder(
             pageBuilder: (context, animation, secondaryAnimation) =>
-                HomeScreen(),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                LoginLoadingScreen(),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
               return FadeTransition(opacity: animation, child: child);
             },
-            transitionDuration: Duration(milliseconds: 500),
+            transitionDuration: Duration(milliseconds: 400),
           ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Credenciales inválidas'),
+            content: Text(result['message'] ?? 'Credenciales inválidas'),
             backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10)),
           ),
         );
       }
     }
-  }
-
-  Future<void> _loginWithGoogle() async {
-    setState(() => _isLoading = true);
-    await Future.delayed(Duration(seconds: 1));
-    
-    await _authService.login('juan.perez@email.com', 'password');
-    
-    setState(() => _isLoading = false);
-    
-    Navigator.pushReplacement(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => HomeScreen(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
-        transitionDuration: Duration(milliseconds: 500),
-      ),
-    );
   }
 
   @override
@@ -170,7 +156,17 @@ class _LoginScreenState extends State<LoginScreen>
               ),
             ),
           ),
-          if (_isLoading) _buildLoadingOverlay(),
+          // Spinner simple mientras espera respuesta del servidor
+          if (_isLoading)
+            Container(
+              color: Colors.black38,
+              child: Center(
+                child: CircularProgressIndicator(
+                  valueColor:
+                      AlwaysStoppedAnimation<Color>(Color(0xFF00ccff)),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -185,7 +181,7 @@ class _LoginScreenState extends State<LoginScreen>
           colors: [
             Color(0xFF1a237e),
             Color(0xFF2D385E),
-            Color(0xFF5258A4),
+            Color(0xFF2563EB),
             Color(0xFF2D385E),
           ],
           stops: [0.0, 0.3, 0.7, 1.0],
@@ -227,7 +223,7 @@ class _LoginScreenState extends State<LoginScreen>
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: Color(0xFF5258A4).withOpacity(0.4),
+                    color: Color(0xFF2563EB).withOpacity(0.4),
                     blurRadius: 30,
                     offset: Offset(0, 15),
                   ),
@@ -302,10 +298,6 @@ class _LoginScreenState extends State<LoginScreen>
           _buildForgotPassword(),
           SizedBox(height: 28),
           _buildLoginButton(),
-          SizedBox(height: 16),
-          _buildDivider(),
-          SizedBox(height: 16),
-          _buildGoogleButton(),
         ],
       ),
     );
@@ -505,38 +497,6 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  Widget _buildGoogleButton() {
-    return SizedBox(
-      width: double.infinity,
-      height: 56,
-      child: OutlinedButton.icon(
-        onPressed: _isLoading ? null : _loginWithGoogle,
-        icon: SvgPicture.asset(
-          'assets/logos/google.svg',
-          width: 24,
-          height: 24,
-          errorBuilder: (context, error, stackTrace) {
-            return Icon(Icons.g_mobiledata, color: Colors.white, size: 24);
-          },
-        ),
-        label: Text(
-          'Continuar con Google',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        style: OutlinedButton.styleFrom(
-          side: BorderSide(color: Colors.white.withOpacity(0.5), width: 2),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          backgroundColor: Colors.white.withOpacity(0.05),
-        ),
-      ),
-    );
-  }
 
   Widget _buildRegisterLink() {
     return TextButton(
@@ -588,7 +548,7 @@ class _LoginScreenState extends State<LoginScreen>
             borderRadius: BorderRadius.circular(16),
           ),
           child: CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF5258A4)),
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2563EB)),
           ),
         ),
       ),

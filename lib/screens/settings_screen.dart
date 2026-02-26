@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/auth_service.dart';
 import '../services/theme_service.dart';
 import 'login_screen.dart';
@@ -14,6 +15,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final AuthService _authService = AuthService();
   bool _notificationsEnabled = true;
   bool _developerMode = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Solo carga el estado del modo dev si el usuario es @yada.com
+    _loadDeveloperMode();
+  }
+
+  Future<void> _loadDeveloperMode() async {
+    if (!_authService.isDeveloper) return;
+    // SharedPreferences solo para el toggle de modo desarrollador
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _developerMode = prefs.getBool('dev_mode') ?? false;
+      });
+    }
+  }
+
+  Future<void> _saveDeveloperMode(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('dev_mode', value);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -63,9 +87,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _buildSettingsSection(),
                 Divider(height: 1),
                 SizedBox(height: 8),
-                _buildDeveloperSection(),
-                Divider(height: 1),
-                SizedBox(height: 8),
+                if (_authService.isDeveloper) ...[
+                  _buildDeveloperSection(),
+                  Divider(height: 1),
+                  SizedBox(height: 8),
+                ],
                 _buildAccountSection(),
               ],
             ),
@@ -85,7 +111,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           end: Alignment.bottomRight,
           colors: [
             Color(0xFF2D385E),
-            Color(0xFF5258A4),
+            Color(0xFF2563EB),
           ],
         ),
       ),
@@ -181,7 +207,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _notificationsEnabled = value;
               });
             },
-            activeColor: Color(0xFF5258A4),
+            activeColor: Color(0xFF2563EB),
           ),
         ),
         ListTile(
@@ -234,9 +260,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           trailing: Switch(
             value: _developerMode,
             onChanged: (value) {
-              setState(() {
-                _developerMode = value;
-              });
+              setState(() => _developerMode = value);
+              _saveDeveloperMode(value);
             },
             activeColor: Colors.orange,
           ),
@@ -353,15 +378,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           ListTile(
             leading: Icon(Icons.delete_outline, color: Colors.red),
-            title: Text('Limpiar LocalStorage'),
-            subtitle: Text('Elimina todos los datos guardados'),
+            title: Text('Cerrar sesión y limpiar datos'),
+            subtitle: Text('Elimina la sesión activa'),
             onTap: () {
               showDialog(
                 context: context,
                 builder: (context) => AlertDialog(
                   title: Text('Limpiar Datos'),
                   content: Text(
-                      '¿Estás seguro de que quieres eliminar todos los datos guardados? Esto cerrará tu sesión.'),
+                      '¿Estás seguro? Se cerrará tu sesión y se limpiarán los datos de la app.'),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(context),

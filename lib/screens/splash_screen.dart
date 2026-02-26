@@ -118,7 +118,7 @@ class _SplashScreenState extends State<SplashScreen>
     _startProgressAnimation();
 
     // Load user data
-    await _authService.loadUserFromStorage();
+    await _authService.loadUserFromSession();
 
     // Wait for progress to complete
     await Future.delayed(Duration(milliseconds: 3000));

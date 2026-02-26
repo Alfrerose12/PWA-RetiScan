@@ -16,7 +16,7 @@ class ThemeService extends ChangeNotifier {
         useMaterial3: true,
         brightness: Brightness.light,
         colorScheme: ColorScheme.light(
-          primary: Color(0xFF030213),        // Primary Dark
+          primary: Color(0xFF2563EB),        // Azul Rey (Primary Brand)
           secondary: Color(0xFF2563EB),      // Azul Oscuro (Gradiente Hero)
           surface: Color(0xFFFFFFFF),        // Background Light
           background: Color(0xFFFFFFFF),     // Background Light
@@ -26,7 +26,7 @@ class ThemeService extends ChangeNotifier {
           onBackground: Color(0xFF252525),   // Foreground Light
           error: Color(0xFFd4183d),          // Destructive
         ),
-        primaryColor: Color(0xFF030213),
+        primaryColor: Color(0xFF2563EB),
         scaffoldBackgroundColor: Colors.white,
         fontFamily: 'Roboto',
         textTheme: TextTheme(
@@ -93,7 +93,7 @@ class ThemeService extends ChangeNotifier {
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
             borderSide: BorderSide(
-              color: Color(0xFF5258A4),
+              color: Color(0xFF2563EB),
               width: 2,
             ),
           ),
@@ -105,17 +105,17 @@ class ThemeService extends ChangeNotifier {
         useMaterial3: true,
         brightness: Brightness.dark,
         colorScheme: ColorScheme.dark(
-          primary: Color(0xFF8b5cf6),        // Púrpura (Sidebar Primary)
+          primary: Color(0xFF60A5FA),        // Azul Claro (Primary en oscuro)
           secondary: Color(0xFF0EA5E9),      // Azul Claro (Gradiente Hero)
           surface: Color(0xFF1f1f1f),        // Sidebar Background
           background: Color(0xFF1a1a1a),     // Background Dark
-          onPrimary: Color(0xFFfafafa),      // Foreground Dark
+          onPrimary: Color(0xFF030213),      // Primary Dark
           onSecondary: Color(0xFF030213),    // Primary Dark
           onSurface: Color(0xFFfafafa),      // Foreground Dark
           onBackground: Color(0xFFfafafa),   // Foreground Dark
           error: Color(0xFFd4183d),          // Destructive
         ),
-        primaryColor: Color(0xFF8b5cf6),
+        primaryColor: Color(0xFF60A5FA),
         scaffoldBackgroundColor: Color(0xFF1a1a1a),
         fontFamily: 'Roboto',
         textTheme: TextTheme(

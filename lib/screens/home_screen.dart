@@ -146,7 +146,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Color(0xFF5258A4).withOpacity(0.1),
+                  color: Color(0xFF2563EB).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -343,7 +343,7 @@ class _HomeContentState extends State<HomeContent>
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Color(0xFF5258A4).withOpacity(0.3),
+            color: Color(0xFF2563EB).withOpacity(0.3),
             blurRadius: 20,
             offset: Offset(0, 10),
           ),
@@ -561,12 +561,12 @@ class _HomeContentState extends State<HomeContent>
       decoration: BoxDecoration(
         color: isDark 
           ? primaryColor.withOpacity(0.1)
-          : Color(0xFF5258A4).withOpacity(0.1),
+          : Color(0xFF2563EB).withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isDark
             ? primaryColor.withOpacity(0.3)
-            : Color(0xFF5258A4).withOpacity(0.3),
+            : Color(0xFF2563EB).withOpacity(0.3),
           width: 1,
         ),
       ),
@@ -577,12 +577,12 @@ class _HomeContentState extends State<HomeContent>
             decoration: BoxDecoration(
               color: isDark
                 ? primaryColor.withOpacity(0.2)
-                : Color(0xFF5258A4).withOpacity(0.2),
+                : Color(0xFF2563EB).withOpacity(0.2),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
               icon,
-              color: isDark ? primaryColor : Color(0xFF5258A4),
+              color: isDark ? primaryColor : Color(0xFF2563EB),
               size: 20,
             ),
           ),

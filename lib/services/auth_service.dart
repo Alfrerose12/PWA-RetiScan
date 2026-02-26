@@ -1,4 +1,8 @@
-import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html;
+import 'package:http/http.dart' as http;
+import '../config/api_config.dart';
 import '../models/user.dart';
 
 class AuthService {
@@ -7,140 +11,152 @@ class AuthService {
   AuthService._internal();
 
   User? _currentUser;
-  SharedPreferences? _prefs;
 
   User? get currentUser => _currentUser;
-
   bool get isAuthenticated => _currentUser != null;
-
   bool get isDoctor => _currentUser?.isDoctor ?? false;
-
   bool get isClient => _currentUser?.isClient ?? true;
 
-  Future<void> _initPrefs() async {
-    _prefs ??= await SharedPreferences.getInstance();
+  /// Token guardado en localStorage (persiste al recargar, se borra al cerrar sesión)
+  String? get _token => html.window.localStorage['auth_token'];
+
+  void _saveToken(String token) {
+    html.window.localStorage['auth_token'] = token;
   }
 
-  Future<void> loadUserFromStorage() async {
-    await _initPrefs();
-    
-    final userId = _prefs?.getString('user_id');
-    final fullName = _prefs?.getString('user_fullName');
-    final age = _prefs?.getInt('user_age');
-    final email = _prefs?.getString('user_email');
-    final role = _prefs?.getString('user_role');
+  /// Intenta restaurar sesión desde localStorage al arrancar la app
+  Future<bool> loadUserFromSession() async {
+    final token = _token;
+    if (token == null) return false;
 
-    if (userId != null && fullName != null && age != null && email != null && role != null) {
-      _currentUser = User(
-        id: userId,
-        fullName: fullName,
-        age: age,
-        email: email,
-        role: role,
-      );
+    try {
+      final uri = Uri.parse('${ApiConfig.baseUrl}/users/profile');
+      final res = await http.get(uri, headers: ApiConfig.authHeaders(token));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        _currentUser = User.fromJson(data).copyWith(token: token);
+        return true;
+      } else {
+        // Token expirado o inválido — limpiar
+        html.window.localStorage.remove('auth_token');
+        return false;
+      }
+    } catch (_) {
+      return false;
     }
   }
 
-  Future<void> _saveUserToStorage(User user) async {
-    await _initPrefs();
-    
-    await _prefs?.setString('user_id', user.id);
-    await _prefs?.setString('user_fullName', user.fullName);
-    await _prefs?.setInt('user_age', user.age);
-    await _prefs?.setString('user_email', user.email);
-    await _prefs?.setString('user_role', user.role);
-  }
-
-  Future<void> clearStorage() async {
-    await _initPrefs();
-    await _prefs?.clear();
-    _currentUser = null;
-  }
-
-  Future<bool> login(String email, String password) async {
-    await Future.delayed(Duration(seconds: 1));
-
-    if (email == 'doctor@retiscan.com') {
-      _currentUser = User(
-        id: 'doc001',
-        fullName: 'Dr. María González',
-        age: 42,
-        email: 'doctor@retiscan.com',
-        role: 'doctor',
+  /// Login → POST /users/login
+  Future<Map<String, dynamic>> login(String email, String password) async {
+    try {
+      final uri = Uri.parse('${ApiConfig.baseUrl}/users/login');
+      final res = await http.post(
+        uri,
+        headers: ApiConfig.jsonHeaders,
+        body: jsonEncode({'email': email, 'password': password}),
       );
-      await _saveUserToStorage(_currentUser!);
-      return true;
-    } else if (email == 'juan.perez@email.com' || email.isNotEmpty) {
-      _currentUser = User(
-        id: 'user001',
-        fullName: 'Juan Pérez',
-        age: 45,
-        email: email,
-        role: 'client',
-      );
-      await _saveUserToStorage(_currentUser!);
-      return true;
+
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+
+      if (res.statusCode == 200) {
+        final token = body['token'] as String;
+        final userData = body['user'] as Map<String, dynamic>;
+        _currentUser = User.fromJson(userData).copyWith(token: token);
+        _saveToken(token);
+        return {'success': true};
+      } else {
+        return {
+          'success': false,
+          'message': body['message'] ?? 'Credenciales inválidas',
+        };
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Error de conexión con el servidor'};
     }
-
-    return false;
   }
 
-  Future<bool> register({
-    required String fullName,
-    required int age,
+  /// Register → POST /users/register
+  Future<Map<String, dynamic>> register({
     required String email,
     required String password,
     required String role,
   }) async {
-    await Future.delayed(Duration(seconds: 1));
+    try {
+      final uri = Uri.parse('${ApiConfig.baseUrl}/users/register');
+      final res = await http.post(
+        uri,
+        headers: ApiConfig.jsonHeaders,
+        body: jsonEncode({'email': email, 'password': password, 'role': role}),
+      );
 
-    _currentUser = User(
-      id: 'user_${DateTime.now().millisecondsSinceEpoch}',
-      fullName: fullName,
-      age: age,
-      email: email,
-      role: role,
-    );
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
 
-    await _saveUserToStorage(_currentUser!);
-    return true;
+      if (res.statusCode == 201 || res.statusCode == 200) {
+        return {'success': true};
+      } else {
+        return {
+          'success': false,
+          'message': body['message'] ?? 'Error al registrar usuario',
+        };
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Error de conexión con el servidor'};
+    }
   }
 
+  /// Actualizar perfil → PUT /users/profile
+  Future<Map<String, dynamic>> updateProfile({
+    String? email,
+    String? password,
+  }) async {
+    final token = _token;
+    if (token == null) return {'success': false, 'message': 'No autenticado'};
+
+    final body = <String, dynamic>{};
+    if (email != null) body['email'] = email;
+    if (password != null) body['password'] = password;
+
+    try {
+      final uri = Uri.parse('${ApiConfig.baseUrl}/users/profile');
+      final res = await http.put(
+        uri,
+        headers: ApiConfig.authHeaders(token),
+        body: jsonEncode(body),
+      );
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        _currentUser = User.fromJson(data).copyWith(token: token);
+        return {'success': true};
+      } else {
+        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        return {'success': false, 'message': data['message'] ?? 'Error al actualizar'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Error de conexión con el servidor'};
+    }
+  }
+
+  /// Cerrar sesión — limpia localStorage y memoria
+  Future<void> logout() async {
+    html.window.localStorage.remove('auth_token');
+    _currentUser = null;
+  }
+
+  /// Limpiar toda la sesión (usado desde modo desarrollador)
+  Future<void> clearStorage() async {
+    html.window.localStorage.clear();
+    _currentUser = null;
+  }
+
+  /// Cambiar rol en memoria — solo modo desarrollador
   Future<void> switchRole(String newRole) async {
     if (_currentUser != null) {
-      _currentUser = User(
-        id: _currentUser!.id,
-        fullName: _currentUser!.fullName,
-        age: _currentUser!.age,
-        email: _currentUser!.email,
-        role: newRole,
-      );
-      await _saveUserToStorage(_currentUser!);
+      _currentUser = _currentUser!.copyWith(role: newRole);
     }
   }
 
-  Future<void> logout() async {
-    await clearStorage();
-  }
-
-  void setMockUser({bool asDoctor = false}) {
-    if (asDoctor) {
-      _currentUser = User(
-        id: 'doc001',
-        fullName: 'Dr. María González',
-        age: 42,
-        email: 'doctor@retiscan.com',
-        role: 'doctor',
-      );
-    } else {
-      _currentUser = User(
-        id: 'user001',
-        fullName: 'Juan Pérez',
-        age: 45,
-        email: 'juan.perez@email.com',
-        role: 'client',
-      );
-    }
-    _saveUserToStorage(_currentUser!);
-  }
+  /// ¿El usuario puede ver opciones de desarrollador?
+  bool get isDeveloper =>
+      _currentUser?.email.endsWith('@yada.com') ?? false;
 }

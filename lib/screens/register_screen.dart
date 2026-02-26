@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import 'login_screen.dart';
 import 'home_screen.dart';
 import '../widgets/glassmorphic_card.dart';
 import '../widgets/animated_button.dart';
@@ -13,8 +14,6 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen>
     with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _ageController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -22,7 +21,7 @@ class _RegisterScreenState extends State<RegisterScreen>
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _isLoading = false;
-  String _selectedRole = 'client';
+  String _selectedRole = 'PACIENTE';
   late AnimationController _slideController;
   late Animation<Offset> _slideAnimation;
   late AnimationController _fadeController;
@@ -78,8 +77,6 @@ class _RegisterScreenState extends State<RegisterScreen>
     _fadeController.dispose();
     _logoController.dispose();
     _particleController.dispose();
-    _nameController.dispose();
-    _ageController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
@@ -102,26 +99,34 @@ class _RegisterScreenState extends State<RegisterScreen>
 
       setState(() => _isLoading = true);
 
-      final success = await _authService.register(
-        fullName: _nameController.text,
-        age: int.parse(_ageController.text),
-        email: _emailController.text,
+      final result = await _authService.register(
+        email: _emailController.text.trim(),
         password: _passwordController.text,
         role: _selectedRole,
       );
 
       setState(() => _isLoading = false);
 
-      if (success) {
-        Navigator.pushReplacement(
-          context,
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) =>
-                HomeScreen(),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              return FadeTransition(opacity: animation, child: child);
-            },
-            transitionDuration: Duration(milliseconds: 500),
+      if (result['success'] == true) {
+        // Registro exitoso → ir a login para que ingrese credenciales
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Cuenta creada. ¡Inicia sesión!'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+        Navigator.pop(context); // volver a login
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Error al registrar usuario'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10)),
           ),
         );
       }
@@ -179,7 +184,7 @@ class _RegisterScreenState extends State<RegisterScreen>
           colors: [
             Color(0xFF1a237e),
             Color(0xFF2D385E),
-            Color(0xFF5258A4),
+            Color(0xFF2563EB),
             Color(0xFF2D385E),
           ],
           stops: [0.0, 0.3, 0.7, 1.0],
@@ -221,14 +226,9 @@ class _RegisterScreenState extends State<RegisterScreen>
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: Color(0xFF5258A4).withOpacity(0.4),
+                    color: Color(0xFF2563EB).withOpacity(0.4),
                     blurRadius: 30,
                     offset: Offset(0, 15),
-                  ),
-                  BoxShadow(
-                    color: Colors.white.withOpacity(0.1),
-                    blurRadius: 20,
-                    offset: Offset(-5, -5),
                   ),
                 ],
               ),
@@ -238,11 +238,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                 height: 70,
                 fit: BoxFit.contain,
                 errorBuilder: (context, error, stackTrace) {
-                  return Icon(
-                    Icons.visibility,
-                    size: 50,
-                    color: Colors.white,
-                  );
+                  return Icon(Icons.visibility, size: 50, color: Colors.white);
                 },
               ),
             ),
@@ -259,13 +255,6 @@ class _RegisterScreenState extends State<RegisterScreen>
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
                 letterSpacing: 1.5,
-                shadows: [
-                  Shadow(
-                    color: Colors.black.withOpacity(0.3),
-                    offset: Offset(0, 4),
-                    blurRadius: 10,
-                  ),
-                ],
               ),
             ),
           ),
@@ -292,48 +281,14 @@ class _RegisterScreenState extends State<RegisterScreen>
           _buildRoleSelector(),
           SizedBox(height: 20),
           _buildTextField(
-            controller: _nameController,
-            label: 'Nombre Completo',
-            icon: Icons.person_outline,
-            delay: 500,
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Por favor ingresa tu nombre';
-              }
-              return null;
-            },
-          ),
-          SizedBox(height: 16),
-          _buildTextField(
-            controller: _ageController,
-            label: 'Edad',
-            icon: Icons.calendar_today_outlined,
-            keyboardType: TextInputType.number,
-            delay: 600,
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Por favor ingresa tu edad';
-              }
-              if (int.tryParse(value) == null) {
-                return 'Ingresa una edad válida';
-              }
-              return null;
-            },
-          ),
-          SizedBox(height: 16),
-          _buildTextField(
             controller: _emailController,
             label: 'Correo electrónico',
             icon: Icons.email_outlined,
+            delay: 500,
             keyboardType: TextInputType.emailAddress,
-            delay: 700,
             validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Por favor ingresa tu correo';
-              }
-              if (!value.contains('@')) {
-                return 'Ingresa un correo válido';
-              }
+              if (value == null || value.isEmpty) return 'Ingresa tu correo';
+              if (!value.contains('@')) return 'Ingresa un correo válido';
               return null;
             },
           ),
@@ -342,25 +297,18 @@ class _RegisterScreenState extends State<RegisterScreen>
             controller: _passwordController,
             label: 'Contraseña',
             obscureText: _obscurePassword,
-            delay: 800,
-            onToggle: () {
-              setState(() {
-                _obscurePassword = !_obscurePassword;
-              });
-            },
+            delay: 600,
+            onToggle: () => setState(() => _obscurePassword = !_obscurePassword),
           ),
           SizedBox(height: 16),
           _buildPasswordField(
             controller: _confirmPasswordController,
             label: 'Confirmar Contraseña',
             obscureText: _obscureConfirmPassword,
-            delay: 900,
+            delay: 700,
             isConfirm: true,
-            onToggle: () {
-              setState(() {
-                _obscureConfirmPassword = !_obscureConfirmPassword;
-              });
-            },
+            onToggle: () =>
+                setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
           ),
           SizedBox(height: 28),
           _buildRegisterButton(),
@@ -376,10 +324,7 @@ class _RegisterScreenState extends State<RegisterScreen>
       builder: (context, value, child) {
         return Transform.translate(
           offset: Offset(0, 20 * (1 - value)),
-          child: Opacity(
-            opacity: value,
-            child: child,
-          ),
+          child: Opacity(opacity: value, child: child),
         );
       },
       child: Column(
@@ -405,20 +350,8 @@ class _RegisterScreenState extends State<RegisterScreen>
             ),
             child: Row(
               children: [
-                Expanded(
-                  child: _buildRoleOption(
-                    'Usuario',
-                    Icons.person_outline,
-                    'client',
-                  ),
-                ),
-                Expanded(
-                  child: _buildRoleOption(
-                    'Doctor',
-                    Icons.medical_services_outlined,
-                    'doctor',
-                  ),
-                ),
+                Expanded(child: _buildRoleOption('Paciente', Icons.person_outline, 'PACIENTE')),
+                Expanded(child: _buildRoleOption('Médico', Icons.medical_services_outlined, 'MEDICO')),
               ],
             ),
           ),
@@ -430,11 +363,7 @@ class _RegisterScreenState extends State<RegisterScreen>
   Widget _buildRoleOption(String label, IconData icon, String role) {
     final isSelected = _selectedRole == role;
     return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedRole = role;
-        });
-      },
+      onTap: () => setState(() => _selectedRole = role),
       child: AnimatedContainer(
         duration: Duration(milliseconds: 300),
         curve: Curves.easeInOut,
@@ -443,27 +372,17 @@ class _RegisterScreenState extends State<RegisterScreen>
           color: isSelected ? Colors.white : Colors.transparent,
           borderRadius: BorderRadius.circular(14),
           boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: Colors.white.withOpacity(0.3),
-                    blurRadius: 10,
-                    offset: Offset(0, 4),
-                  ),
-                ]
+              ? [BoxShadow(color: Colors.white.withOpacity(0.3), blurRadius: 10, offset: Offset(0, 4))]
               : [],
         ),
         child: Column(
           children: [
-            Icon(
-              icon,
-              color: isSelected ? Color(0xFF5258A4) : Colors.white.withOpacity(0.7),
-              size: 28,
-            ),
+            Icon(icon, color: isSelected ? Color(0xFF2563EB) : Colors.white.withOpacity(0.7), size: 28),
             SizedBox(height: 8),
             Text(
               label,
               style: TextStyle(
-                color: isSelected ? Color(0xFF5258A4) : Colors.white.withOpacity(0.7),
+                color: isSelected ? Color(0xFF2563EB) : Colors.white.withOpacity(0.7),
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                 fontSize: 14,
               ),
@@ -488,10 +407,7 @@ class _RegisterScreenState extends State<RegisterScreen>
       builder: (context, value, child) {
         return Transform.translate(
           offset: Offset(0, 20 * (1 - value)),
-          child: Opacity(
-            opacity: value,
-            child: child,
-          ),
+          child: Opacity(opacity: value, child: child),
         );
       },
       child: TextFormField(
@@ -540,10 +456,7 @@ class _RegisterScreenState extends State<RegisterScreen>
       builder: (context, value, child) {
         return Transform.translate(
           offset: Offset(0, 20 * (1 - value)),
-          child: Opacity(
-            opacity: value,
-            child: child,
-          ),
+          child: Opacity(opacity: value, child: child),
         );
       },
       child: TextFormField(
@@ -553,10 +466,7 @@ class _RegisterScreenState extends State<RegisterScreen>
         decoration: InputDecoration(
           labelText: label,
           labelStyle: TextStyle(color: Colors.white.withOpacity(0.8)),
-          prefixIcon: Icon(
-            isConfirm ? Icons.lock_outline : Icons.lock_outline,
-            color: Colors.white.withOpacity(0.8),
-          ),
+          prefixIcon: Icon(Icons.lock_outline, color: Colors.white.withOpacity(0.8)),
           suffixIcon: IconButton(
             icon: Icon(
               obscureText ? Icons.visibility_outlined : Icons.visibility_off_outlined,
@@ -585,13 +495,9 @@ class _RegisterScreenState extends State<RegisterScreen>
         ),
         validator: (value) {
           if (value == null || value.isEmpty) {
-            return isConfirm
-                ? 'Por favor confirma tu contraseña'
-                : 'Por favor ingresa tu contraseña';
+            return isConfirm ? 'Por favor confirma tu contraseña' : 'Por favor ingresa tu contraseña';
           }
-          if (value.length < 6) {
-            return 'La contraseña debe tener al menos 6 caracteres';
-          }
+          if (value.length < 6) return 'La contraseña debe tener al menos 6 caracteres';
           return null;
         },
       ),
@@ -613,16 +519,11 @@ class _RegisterScreenState extends State<RegisterScreen>
 
   Widget _buildLoginLink() {
     return TextButton(
-      onPressed: () {
-        Navigator.pop(context);
-      },
+      onPressed: () => Navigator.pop(context),
       child: Text.rich(
         TextSpan(
           text: '¿Ya tienes cuenta? ',
-          style: TextStyle(
-            color: Colors.white.withOpacity(0.8),
-            fontSize: 15,
-          ),
+          style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 15),
           children: [
             TextSpan(
               text: 'Inicia sesión',
@@ -645,12 +546,9 @@ class _RegisterScreenState extends State<RegisterScreen>
       child: Center(
         child: Container(
           padding: EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-          ),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
           child: CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF5258A4)),
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2563EB)),
           ),
         ),
       ),
@@ -660,7 +558,6 @@ class _RegisterScreenState extends State<RegisterScreen>
 
 class ParticlePainter extends CustomPainter {
   final double animationValue;
-
   ParticlePainter(this.animationValue);
 
   @override
@@ -668,12 +565,10 @@ class ParticlePainter extends CustomPainter {
     final paint = Paint()
       ..color = Colors.white.withOpacity(0.1)
       ..style = PaintingStyle.fill;
-
     for (int i = 0; i < 20; i++) {
       final x = (size.width * (i * 0.1 + animationValue * 0.5)) % size.width;
       final y = (size.height * (math.sin(i + animationValue * math.pi * 2) * 0.5 + 0.5));
       final radius = 2.0 + math.sin(i + animationValue * math.pi) * 2;
-      
       canvas.drawCircle(Offset(x, y), radius, paint);
     }
   }

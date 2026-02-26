@@ -1,19 +1,17 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:math' as math;
-import 'login_screen.dart';
-import '../services/auth_service.dart';
+import 'home_screen.dart';
 
-class LogoutScreen extends StatefulWidget {
+/// Pantalla animada que se muestra tras un login exitoso,
+/// igual que LogoutScreen pero en sentido inverso (abriendo sesión).
+class LoginLoadingScreen extends StatefulWidget {
   @override
-  _LogoutScreenState createState() => _LogoutScreenState();
+  _LoginLoadingScreenState createState() => _LoginLoadingScreenState();
 }
 
-class _LogoutScreenState extends State<LogoutScreen>
+class _LoginLoadingScreenState extends State<LoginLoadingScreen>
     with TickerProviderStateMixin {
-  final AuthService _authService = AuthService();
-  
-  // Animation controllers
   late AnimationController _logoController;
   late AnimationController _breatheController;
   late AnimationController _rippleController;
@@ -21,14 +19,12 @@ class _LogoutScreenState extends State<LogoutScreen>
   late AnimationController _bracketsController;
   late AnimationController _irisController;
   late AnimationController _dotsController;
-  
-  // Animations
+
   late Animation<double> _logoScaleAnimation;
   late Animation<double> _logoOpacityAnimation;
   late Animation<double> _breatheAnimation;
   late Animation<double> _scanLineAnimation;
-  
-  // Progress
+
   double _progress = 0.0;
   Timer? _progressTimer;
   bool _showProgress = false;
@@ -38,11 +34,10 @@ class _LogoutScreenState extends State<LogoutScreen>
   void initState() {
     super.initState();
     _initializeAnimations();
-    _startLogoutSequence();
+    _startSequence();
   }
 
   void _initializeAnimations() {
-    // Logo appear
     _logoController = AnimationController(
       duration: Duration(milliseconds: 700),
       vsync: this,
@@ -54,7 +49,6 @@ class _LogoutScreenState extends State<LogoutScreen>
       CurvedAnimation(parent: _logoController, curve: Curves.easeOut),
     );
 
-    // Breathe effect
     _breatheController = AnimationController(
       duration: Duration(milliseconds: 2000),
       vsync: this,
@@ -63,13 +57,11 @@ class _LogoutScreenState extends State<LogoutScreen>
       CurvedAnimation(parent: _breatheController, curve: Curves.easeInOut),
     );
 
-    // Ripple effect
     _rippleController = AnimationController(
       duration: Duration(milliseconds: 2000),
       vsync: this,
     )..repeat();
 
-    // Scan line
     _scanLineController = AnimationController(
       duration: Duration(milliseconds: 2000),
       vsync: this,
@@ -78,59 +70,48 @@ class _LogoutScreenState extends State<LogoutScreen>
       CurvedAnimation(parent: _scanLineController, curve: Curves.linear),
     );
 
-    // Brackets pulse
     _bracketsController = AnimationController(
       duration: Duration(milliseconds: 1500),
       vsync: this,
     )..repeat(reverse: true);
 
-    // Iris animation
     _irisController = AnimationController(
       duration: Duration(milliseconds: 2000),
       vsync: this,
     )..repeat(reverse: true);
 
-    // Loading dots
     _dotsController = AnimationController(
       duration: Duration(milliseconds: 900),
       vsync: this,
     )..repeat();
   }
 
-  void _startLogoutSequence() async {
-    // Phase 0: Logo appears
+  void _startSequence() async {
     _logoController.forward();
 
-    // Phase 1: Scanning starts
     await Future.delayed(Duration(milliseconds: 400));
-    setState(() {
-      _showScanLine = true;
-    });
+    if (mounted) setState(() => _showScanLine = true);
 
-    // Phase 2: Progress visible
     await Future.delayed(Duration(milliseconds: 800));
-    setState(() {
-      _showProgress = true;
-    });
+    if (mounted) setState(() => _showProgress = true);
 
-    // Start progress animation (faster - 1.5 seconds)
     _startProgressAnimation();
 
-    // Execute logout
-    await _authService.logout();
-
-    // Wait for progress to complete
     await Future.delayed(Duration(milliseconds: 1500));
-    _navigateToLogin();
+    if (mounted) _navigateToHome();
   }
 
   void _startProgressAnimation() {
     const updateInterval = Duration(milliseconds: 30);
-    const totalDuration = 1500; // 1.5 seconds
+    const totalDuration = 1500;
     const totalSteps = totalDuration ~/ 30;
     int currentStep = 0;
 
     _progressTimer = Timer.periodic(updateInterval, (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
       setState(() {
         currentStep++;
         double remaining = 100 - _progress;
@@ -145,10 +126,10 @@ class _LogoutScreenState extends State<LogoutScreen>
     });
   }
 
-  void _navigateToLogin() {
+  void _navigateToHome() {
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => LoginScreen(),
+        pageBuilder: (context, animation, secondaryAnimation) => HomeScreen(),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(opacity: animation, child: child);
         },
@@ -175,7 +156,7 @@ class _LogoutScreenState extends State<LogoutScreen>
     return Scaffold(
       body: Stack(
         children: [
-          // Diagonal gradient background
+          // Gradient background
           Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -193,7 +174,7 @@ class _LogoutScreenState extends State<LogoutScreen>
             ),
           ),
 
-          // Breathe glow effect
+          // Breathe glow
           AnimatedBuilder(
             animation: _breatheAnimation,
             builder: (context, child) {
@@ -226,13 +207,13 @@ class _LogoutScreenState extends State<LogoutScreen>
             },
           ),
 
-          // Grid pattern
+          // Grid
           CustomPaint(
-            painter: GridPainter(),
+            painter: _LoginGridPainter(),
             size: Size.infinite,
           ),
 
-          // Floating particles
+          // Particles
           ...List.generate(20, (index) => _buildParticle(index)),
 
           // Scan line
@@ -243,7 +224,8 @@ class _LogoutScreenState extends State<LogoutScreen>
                 return Positioned(
                   left: 0,
                   right: 0,
-                  top: MediaQuery.of(context).size.height * _scanLineAnimation.value,
+                  top: MediaQuery.of(context).size.height *
+                      _scanLineAnimation.value,
                   child: Container(
                     height: 2,
                     decoration: BoxDecoration(
@@ -273,9 +255,9 @@ class _LogoutScreenState extends State<LogoutScreen>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Logo with animations
                 AnimatedBuilder(
-                  animation: Listenable.merge([_logoScaleAnimation, _logoOpacityAnimation]),
+                  animation: Listenable.merge(
+                      [_logoScaleAnimation, _logoOpacityAnimation]),
                   builder: (context, child) {
                     return Opacity(
                       opacity: _logoOpacityAnimation.value,
@@ -286,10 +268,7 @@ class _LogoutScreenState extends State<LogoutScreen>
                     );
                   },
                 ),
-
                 SizedBox(height: 60),
-
-                // Progress section
                 if (_showProgress)
                   AnimatedOpacity(
                     opacity: _showProgress ? 1.0 : 0.0,
@@ -339,7 +318,6 @@ class _LogoutScreenState extends State<LogoutScreen>
       height: 220,
       child: Stack(
         children: [
-          // Ripple rings
           AnimatedBuilder(
             animation: _rippleController,
             builder: (context, child) {
@@ -357,12 +335,10 @@ class _LogoutScreenState extends State<LogoutScreen>
               );
             },
           ),
-
-          // Eye logo with brackets
           Center(
             child: CustomPaint(
               size: Size(200, 220),
-              painter: EyeLogoPainter(
+              painter: _LoginEyePainter(
                 bracketsAnimation: _bracketsController,
                 irisAnimation: _irisController,
               ),
@@ -397,7 +373,6 @@ class _LogoutScreenState extends State<LogoutScreen>
       width: 224,
       child: Column(
         children: [
-          // Progress bar
           Container(
             height: 3,
             decoration: BoxDecoration(
@@ -430,18 +405,14 @@ class _LogoutScreenState extends State<LogoutScreen>
               ],
             ),
           ),
-
           SizedBox(height: 12),
-
-          // Text row
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // "CERRANDO SESIÓN" text
               Row(
                 children: [
                   Text(
-                    'CERRANDO SESIÓN',
+                    'INICIANDO SESIÓN',
                     style: TextStyle(
                       fontSize: 10,
                       color: Colors.white.withOpacity(0.6),
@@ -450,7 +421,6 @@ class _LogoutScreenState extends State<LogoutScreen>
                     ),
                   ),
                   SizedBox(width: 4),
-                  // Animated dots
                   AnimatedBuilder(
                     animation: _dotsController,
                     builder: (context, child) {
@@ -459,7 +429,6 @@ class _LogoutScreenState extends State<LogoutScreen>
                           final delay = index * 0.15;
                           final value = (_dotsController.value - delay) % 1.0;
                           final opacity = value < 0.5 ? 1.0 : 0.3;
-                          
                           return Padding(
                             padding: EdgeInsets.symmetric(horizontal: 1),
                             child: Container(
@@ -477,7 +446,6 @@ class _LogoutScreenState extends State<LogoutScreen>
                   ),
                 ],
               ),
-              // Percentage
               Container(
                 width: 32,
                 child: Text(
@@ -498,20 +466,16 @@ class _LogoutScreenState extends State<LogoutScreen>
   }
 }
 
-// Grid painter (reused)
-class GridPainter extends CustomPainter {
+class _LoginGridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..color = Color(0xFF00ccff).withOpacity(0.02)
       ..strokeWidth = 1;
-
     const gridSize = 60.0;
-
     for (double x = 0; x < size.width; x += gridSize) {
       canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
     }
-
     for (double y = 0; y < size.height; y += gridSize) {
       canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
     }
@@ -521,12 +485,11 @@ class GridPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-// Eye logo painter (reused)
-class EyeLogoPainter extends CustomPainter {
+class _LoginEyePainter extends CustomPainter {
   final Animation<double> bracketsAnimation;
   final Animation<double> irisAnimation;
 
-  EyeLogoPainter({
+  _LoginEyePainter({
     required this.bracketsAnimation,
     required this.irisAnimation,
   }) : super(repaint: Listenable.merge([bracketsAnimation, irisAnimation]));
@@ -534,7 +497,6 @@ class EyeLogoPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2 - 10);
-
     _drawBrackets(canvas, center);
     _drawEye(canvas, center);
     _drawText(canvas, size);
@@ -542,14 +504,12 @@ class EyeLogoPainter extends CustomPainter {
 
   void _drawBrackets(Canvas canvas, Offset center) {
     final paint = Paint()
-      ..color = Colors.white.withOpacity(0.4 + (bracketsAnimation.value * 0.6))
+      ..color =
+          Colors.white.withOpacity(0.4 + (bracketsAnimation.value * 0.6))
       ..strokeWidth = 10
       ..style = PaintingStyle.stroke;
-
-    final bracketSize = 20.0;
-    final distance = 80.0;
-
-    // Top-left
+    const bracketSize = 20.0;
+    const distance = 80.0;
     canvas.drawPath(
       Path()
         ..moveTo(center.dx - distance, center.dy - distance + bracketSize)
@@ -557,8 +517,6 @@ class EyeLogoPainter extends CustomPainter {
         ..lineTo(center.dx - distance + bracketSize, center.dy - distance),
       paint,
     );
-
-    // Top-right
     canvas.drawPath(
       Path()
         ..moveTo(center.dx + distance - bracketSize, center.dy - distance)
@@ -566,8 +524,6 @@ class EyeLogoPainter extends CustomPainter {
         ..lineTo(center.dx + distance, center.dy - distance + bracketSize),
       paint,
     );
-
-    // Bottom-left
     canvas.drawPath(
       Path()
         ..moveTo(center.dx - distance, center.dy + distance - bracketSize)
@@ -575,8 +531,6 @@ class EyeLogoPainter extends CustomPainter {
         ..lineTo(center.dx - distance + bracketSize, center.dy + distance),
       paint,
     );
-
-    // Bottom-right
     canvas.drawPath(
       Path()
         ..moveTo(center.dx + distance - bracketSize, center.dy + distance)
@@ -587,27 +541,26 @@ class EyeLogoPainter extends CustomPainter {
   }
 
   void _drawEye(Canvas canvas, Offset center) {
-    // Outer eye shape
     final eyePaint = Paint()
       ..color = Colors.white
       ..strokeWidth = 9
       ..style = PaintingStyle.stroke;
-
     final eyePath = Path()
       ..moveTo(center.dx - 60, center.dy)
-      ..quadraticBezierTo(center.dx - 30, center.dy - 35, center.dx, center.dy - 40)
-      ..quadraticBezierTo(center.dx + 30, center.dy - 35, center.dx + 60, center.dy)
-      ..quadraticBezierTo(center.dx + 30, center.dy + 35, center.dx, center.dy + 40)
-      ..quadraticBezierTo(center.dx - 30, center.dy + 35, center.dx - 60, center.dy);
-
+      ..quadraticBezierTo(
+          center.dx - 30, center.dy - 35, center.dx, center.dy - 40)
+      ..quadraticBezierTo(
+          center.dx + 30, center.dy - 35, center.dx + 60, center.dy)
+      ..quadraticBezierTo(
+          center.dx + 30, center.dy + 35, center.dx, center.dy + 40)
+      ..quadraticBezierTo(
+          center.dx - 30, center.dy + 35, center.dx - 60, center.dy);
     canvas.drawPath(eyePath, eyePaint);
 
-    // Iris ring
     final irisPaint = Paint()
       ..color = Colors.white
       ..strokeWidth = 6
       ..style = PaintingStyle.stroke;
-
     final irisScale = 1.0 + (irisAnimation.value * 0.05);
     canvas.save();
     canvas.translate(center.dx, center.dy);
@@ -616,11 +569,9 @@ class EyeLogoPainter extends CustomPainter {
     canvas.drawCircle(center, 42, irisPaint);
     canvas.restore();
 
-    // Pupil
     final pupilPaint = Paint()
       ..color = Color(0xFF001a4d)
       ..style = PaintingStyle.fill;
-
     final pupilScale = 1.0 - (irisAnimation.value * 0.1);
     canvas.save();
     canvas.translate(center.dx, center.dy);
@@ -629,19 +580,16 @@ class EyeLogoPainter extends CustomPainter {
     canvas.drawCircle(center, 28, pupilPaint);
     canvas.restore();
 
-    // Inner iris
-    final innerIrisPaint = Paint()
-      ..color = Color(0xFF00ccff).withOpacity(0.8)
-      ..style = PaintingStyle.fill;
-
-    canvas.drawCircle(center, 22, innerIrisPaint);
-
-    // Highlight
-    final highlightPaint = Paint()
-      ..color = Colors.white.withOpacity(0.9)
-      ..style = PaintingStyle.fill;
-
-    canvas.drawCircle(Offset(center.dx + 12, center.dy - 17), 6, highlightPaint);
+    canvas.drawCircle(center, 22,
+        Paint()
+          ..color = Color(0xFF00ccff).withOpacity(0.8)
+          ..style = PaintingStyle.fill);
+    canvas.drawCircle(
+        Offset(center.dx + 12, center.dy - 17),
+        6,
+        Paint()
+          ..color = Colors.white.withOpacity(0.9)
+          ..style = PaintingStyle.fill);
   }
 
   void _drawText(Canvas canvas, Size size) {
@@ -657,14 +605,10 @@ class EyeLogoPainter extends CustomPainter {
       ),
       textDirection: TextDirection.ltr,
     );
-
     textPainter.layout();
     textPainter.paint(
       canvas,
-      Offset(
-        (size.width - textPainter.width) / 2,
-        size.height - 30,
-      ),
+      Offset((size.width - textPainter.width) / 2, size.height - 30),
     );
   }
 
