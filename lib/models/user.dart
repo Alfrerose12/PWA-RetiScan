@@ -1,7 +1,7 @@
 class User {
   final String id;
   final String email;
-  final String role; // "MEDICO" | "PACIENTE"
+  final String role; // "MEDICO" | "PACIENTE" | "ADMINISTRADOR"
   final String? fullName;
   final String? token;
 
@@ -13,8 +13,9 @@ class User {
     this.token,
   });
 
-  // La API devuelve role como "MEDICO" o "PACIENTE"
+  // La API devuelve role como "MEDICO", "PACIENTE" o "ADMINISTRADOR"
   bool get isDoctor => role == 'MEDICO';
+  bool get isAdmin  => role == 'ADMINISTRADOR';
   bool get isClient => role == 'PACIENTE';
 
   Map<String, dynamic> toJson() {
@@ -31,7 +32,8 @@ class User {
       id: json['id'] as String,
       email: json['email'] as String,
       role: json['role'] as String? ?? 'PACIENTE',
-      fullName: json['fullName'] as String?,
+      // La API puede devolver 'name' o 'fullName'
+      fullName: (json['name'] ?? json['fullName']) as String?,
     );
   }
 

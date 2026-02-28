@@ -15,6 +15,7 @@ class AuthService {
   User? get currentUser => _currentUser;
   bool get isAuthenticated => _currentUser != null;
   bool get isDoctor => _currentUser?.isDoctor ?? false;
+  bool get isAdmin  => _currentUser?.isAdmin  ?? false;
   bool get isClient => _currentUser?.isClient ?? true;
 
   /// Token guardado en localStorage (persiste al recargar, se borra al cerrar sesión)
@@ -120,18 +121,33 @@ class AuthService {
   Future<Map<String, dynamic>> register({
     required String email,
     required String password,
+    String? fullName,
   }) async {
     try {
       final uri = Uri.parse('${ApiConfig.baseUrl}/users/register');
       final res = await http.post(
         uri,
         headers: ApiConfig.jsonHeaders,
-        body: jsonEncode({'email': email, 'password': password}),
+        body: jsonEncode({
+          'email': email,
+          'password': password,
+          if (fullName != null && fullName.isNotEmpty) 'name': fullName,
+        }),
       );
 
       final body = jsonDecode(res.body) as Map<String, dynamic>;
 
       if (res.statusCode == 201 || res.statusCode == 200) {
+        // Guardar token si la API lo devuelve tras el registro
+        // (necesario para que request2FA pueda autenticarse)
+        final token = body['token'] as String?;
+        if (token != null) {
+          _saveToken(token);
+          final userData = body['user'] as Map<String, dynamic>?;
+          if (userData != null) {
+            _currentUser = User.fromJson(userData).copyWith(token: token);
+          }
+        }
         return {'success': true};
       } else {
         return {

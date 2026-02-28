@@ -39,7 +39,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   List<Widget> _getScreens() {
-    if (_authService.isDoctor) {
+    if (_authService.isAdmin) {
+      return [
+        HomeContent(),
+        AdminScreen(),
+        ProfileScreen(),
+      ];
+    } else if (_authService.isDoctor) {
       return [
         HomeContent(),
         AdminScreen(),
@@ -56,7 +62,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   List<BottomNavigationBarItem> _getNavItems() {
-    if (_authService.isDoctor) {
+    if (_authService.isAdmin || _authService.isDoctor) {
       return [
         BottomNavigationBarItem(
           icon: Icon(Icons.home_outlined),
@@ -66,12 +72,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         BottomNavigationBarItem(
           icon: Icon(Icons.admin_panel_settings_outlined),
           activeIcon: Icon(Icons.admin_panel_settings),
-          label: 'Gestión',
+          label: _authService.isAdmin ? 'Médicos' : 'Gestión',
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.person_outline),
           activeIcon: Icon(Icons.person),
-          label: 'Usuario',
+          label: 'Perfil',
         ),
       ];
     } else {
@@ -94,36 +100,27 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         BottomNavigationBarItem(
           icon: Icon(Icons.person_outline),
           activeIcon: Icon(Icons.person),
-          label: 'Usuario',
+          label: 'Perfil',
         ),
       ];
     }
   }
 
   String _getAppBarTitle() {
-    if (_authService.isDoctor) {
+    if (_authService.isAdmin || _authService.isDoctor) {
       switch (_currentIndex) {
-        case 0:
-          return 'RetiScan';
-        case 1:
-          return 'Gestión';
-        case 2:
-          return 'Perfil';
-        default:
-          return 'RetiScan';
+        case 0: return 'RetiScan';
+        case 1: return _authService.isAdmin ? 'Gestión de Médicos' : 'Gestión';
+        case 2: return 'Perfil';
+        default: return 'RetiScan';
       }
     } else {
       switch (_currentIndex) {
-        case 0:
-          return 'RetiScan';
-        case 1:
-          return 'Captura';
-        case 2:
-          return 'Histórico';
-        case 3:
-          return 'Perfil';
-        default:
-          return 'RetiScan';
+        case 0: return 'RetiScan';
+        case 1: return 'Captura';
+        case 2: return 'Histórico';
+        case 3: return 'Perfil';
+        default: return 'RetiScan';
       }
     }
   }
@@ -150,7 +147,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  _authService.isDoctor ? 'Médico' : 'Usuario',
+                  _authService.isAdmin
+                      ? 'Administrador'
+                      : _authService.isDoctor
+                          ? 'Médico'
+                          : 'Paciente',
                   style: TextStyle(
                     fontSize: 12,
                     color: Theme.of(context).colorScheme.primary,
@@ -259,6 +260,7 @@ class _HomeContentState extends State<HomeContent>
   Widget build(BuildContext context) {
     final user = _authService.currentUser;
     final isDoctor = user?.isDoctor ?? false;
+    final isAdmin  = user?.isAdmin  ?? false;
     
     return Center(
       child: ConstrainedBox(
@@ -268,9 +270,28 @@ class _HomeContentState extends State<HomeContent>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildAnimatedWidget(0, _buildWelcomeCard(context, isDoctor)),
+              _buildAnimatedWidget(0, _buildWelcomeCard(context, isDoctor, isAdmin)),
               SizedBox(height: 24),
-              if (isDoctor) ...[
+              if (isAdmin) ...[
+                // Contenido para administradores
+                _buildAnimatedWidget(1, _buildSectionTitle(context, 'Resumen del Sistema')),
+                SizedBox(height: 16),
+                _buildAnimatedWidget(2, _buildRecommendationCard(
+                  context,
+                  'Administra los médicos registrados en el sistema',
+                  Icons.manage_accounts_outlined,
+                )),
+                _buildAnimatedWidget(3, _buildRecommendationCard(
+                  context,
+                  'Revisa y valida las cuentas pendientes de aprobación',
+                  Icons.fact_check_outlined,
+                )),
+                _buildAnimatedWidget(4, _buildRecommendationCard(
+                  context,
+                  'Monitorea la actividad del sistema',
+                  Icons.bar_chart_outlined,
+                )),
+              ] else if (isDoctor) ...[
                 // Contenido para médicos
                 _buildAnimatedWidget(1, _buildSectionTitle(context, 'Pacientes Recientes')),
                 SizedBox(height: 16),
@@ -328,7 +349,7 @@ class _HomeContentState extends State<HomeContent>
     );
   }
 
-  Widget _buildWelcomeCard(BuildContext context, bool isDoctor) {
+  Widget _buildWelcomeCard(BuildContext context, bool isDoctor, bool isAdmin) {
     return Container(
       padding: EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -361,7 +382,11 @@ class _HomeContentState extends State<HomeContent>
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
-                  isDoctor ? Icons.medical_services : Icons.visibility,
+                  isAdmin
+                      ? Icons.admin_panel_settings
+                      : isDoctor
+                          ? Icons.medical_services
+                          : Icons.visibility,
                   color: Theme.of(context).colorScheme.onPrimary,
                   size: 28,
                 ),
@@ -372,7 +397,11 @@ class _HomeContentState extends State<HomeContent>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      isDoctor ? '¡Bienvenido, Doctor!' : '¡Bienvenido!',
+                      isAdmin
+                          ? '¡Bienvenido, Administrador!'
+                          : isDoctor
+                              ? '¡Bienvenido, Doctor!'
+                              : '¡Bienvenido!',
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.onPrimary,
                         fontSize: 24,
@@ -381,9 +410,11 @@ class _HomeContentState extends State<HomeContent>
                     ),
                     SizedBox(height: 4),
                     Text(
-                      isDoctor 
-                        ? 'Panel de gestión de pacientes'
-                        : 'Tu salud visual es nuestra prioridad',
+                      isAdmin
+                          ? 'Panel de administración del sistema'
+                          : isDoctor
+                              ? 'Panel de gestión de pacientes'
+                              : 'Tu salud visual es nuestra prioridad',
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.9),
                         fontSize: 14,

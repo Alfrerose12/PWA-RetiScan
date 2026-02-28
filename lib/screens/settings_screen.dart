@@ -121,16 +121,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
             radius: 40,
             backgroundColor: Theme.of(context).colorScheme.onPrimary.withOpacity(0.2),
             child: Icon(
-              user?.isDoctor ?? false
-                  ? Icons.medical_services
-                  : Icons.person,
+              user?.isAdmin ?? false
+                  ? Icons.admin_panel_settings
+                  : user?.isDoctor ?? false
+                      ? Icons.medical_services
+                      : Icons.person,
               size: 40,
               color: Theme.of(context).colorScheme.onPrimary,
             ),
           ),
           SizedBox(height: 16),
           Text(
-            user?.fullName ?? 'Usuario',
+            user?.fullName ?? user?.email ?? 'Sin nombre',
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
@@ -153,7 +155,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              user?.isDoctor ?? false ? 'Médico' : 'Usuario',
+              user?.isAdmin ?? false
+                  ? 'Administrador'
+                  : user?.isDoctor ?? false
+                      ? 'Médico'
+                      : 'Paciente',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
@@ -294,7 +300,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 SizedBox(height: 12),
                 Text(
-                  'Rol actual: ${_authService.isDoctor ? "Doctor" : "Usuario"}',
+                  'Rol actual: ${_authService.isAdmin ? "Administrador" : _authService.isDoctor ? "Doctor" : "Paciente"}',
                   style: TextStyle(
                     color: Colors.orange[800],
                     fontSize: 14,

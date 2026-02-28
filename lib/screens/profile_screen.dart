@@ -168,7 +168,8 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Widget _buildProfileHeader() {
-    final email = _authService.currentUser?.email ?? '';
+    final user = _authService.currentUser;
+    final hasName = user?.fullName != null && user!.fullName!.isNotEmpty;
     return Container(
       padding: EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -201,14 +202,32 @@ class _ProfileScreenState extends State<ProfileScreen>
             ),
           ),
           SizedBox(height: 16),
-          Text(
-            email,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Theme.of(context).colorScheme.onPrimary,
+          if (hasName) ...[
+            Text(
+              user!.fullName!,
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.onPrimary,
+              ),
             ),
-          ),
+            SizedBox(height: 4),
+            Text(
+              user.email,
+              style: TextStyle(
+                fontSize: 14,
+                color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.8),
+              ),
+            ),
+          ] else
+            Text(
+              user?.email ?? '',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.onPrimary,
+              ),
+            ),
         ],
       ),
     );
@@ -370,6 +389,26 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   Widget _buildRoleCard(String role) {
     final isDoctor = role == 'MEDICO';
+    final isAdmin  = role == 'ADMINISTRADOR';
+
+    final Color roleColor = isAdmin
+        ? Colors.deepPurple
+        : isDoctor
+            ? Colors.blue
+            : Colors.green;
+
+    final IconData roleIcon = isAdmin
+        ? Icons.admin_panel_settings_outlined
+        : isDoctor
+            ? Icons.medical_services_outlined
+            : Icons.person_outline;
+
+    final String roleLabel = isAdmin
+        ? 'Administrador'
+        : isDoctor
+            ? 'Médico'
+            : 'Paciente';
+
     return Container(
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -382,14 +421,10 @@ class _ProfileScreenState extends State<ProfileScreen>
           Container(
             padding: EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: (isDoctor ? Colors.blue : Colors.green).withOpacity(0.1),
+              color: roleColor.withOpacity(0.1),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(
-              isDoctor ? Icons.medical_services_outlined : Icons.person_outline,
-              color: isDoctor ? Colors.blue : Colors.green,
-              size: 24,
-            ),
+            child: Icon(roleIcon, color: roleColor, size: 24),
           ),
           SizedBox(width: 16),
           Column(
@@ -400,11 +435,11 @@ class _ProfileScreenState extends State<ProfileScreen>
                       fontSize: 12,
                       color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.6))),
               Text(
-                isDoctor ? 'Médico' : 'Paciente',
+                roleLabel,
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: isDoctor ? Colors.blue : Colors.green,
+                  color: roleColor,
                 ),
               ),
             ],

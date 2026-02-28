@@ -13,6 +13,7 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen>
     with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -76,6 +77,7 @@ class _RegisterScreenState extends State<RegisterScreen>
     _fadeController.dispose();
     _logoController.dispose();
     _particleController.dispose();
+    _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
@@ -99,9 +101,22 @@ class _RegisterScreenState extends State<RegisterScreen>
       setState(() => _isLoading = true);
 
       final result = await _authService.register(
+        fullName: _nameController.text.trim(),
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
+
+      // Si el registro fue exitoso pero la API no devolvió token,
+      // hacemos login automático para obtener el JWT antes de llamar a 2FA.
+      // (El endpoint /auth/2fa/send requiere authMiddleware)
+      if (result['success'] == true) {
+        // Ignoramos el resultado del login: si falla, request2FA() lo manejará.
+        // Si ya tenía token guardado del registro, esto lo refresca.
+        await _authService.login(
+          _emailController.text.trim(),
+          _passwordController.text,
+        );
+      }
 
       setState(() => _isLoading = false);
 
@@ -281,6 +296,18 @@ class _RegisterScreenState extends State<RegisterScreen>
       padding: EdgeInsets.all(28),
       child: Column(
         children: [
+          _buildTextField(
+            controller: _nameController,
+            label: 'Nombre completo',
+            icon: Icons.person_outline,
+            delay: 400,
+            validator: (value) {
+              if (value == null || value.isEmpty) return 'Ingresa tu nombre';
+              if (value.trim().length < 2) return 'Nombre demasiado corto';
+              return null;
+            },
+          ),
+          SizedBox(height: 16),
           _buildTextField(
             controller: _emailController,
             label: 'Correo electrónico',
