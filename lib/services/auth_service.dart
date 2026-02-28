@@ -64,7 +64,18 @@ class AuthService {
         final userData = body['user'] as Map<String, dynamic>;
         _currentUser = User.fromJson(userData).copyWith(token: token);
         _saveToken(token);
-        return {'success': true};
+
+        // mustChangePassword puede venir en la raíz o dentro de 'user'
+        final mustChange = body['mustChangePassword'] == true ||
+            userData['mustChangePassword'] == true;
+
+        // Debug (visible en flutter run)
+        print('[AuthService.login] mustChangePassword=$mustChange | body keys=${body.keys.toList()}');
+
+        return {
+          'success': true,
+          'mustChangePassword': mustChange,
+        };
       } else {
         return {
           'success': false,
@@ -197,6 +208,28 @@ class AuthService {
   Future<void> logout() async {
     html.window.localStorage.remove('auth_token');
     _currentUser = null;
+  }
+
+  /// Cambiar contraseña (primer login médico) → PUT /users/change-password
+  Future<Map<String, dynamic>> changePassword(String newPassword) async {
+    final token = _token;
+    if (token == null) return {'success': false, 'message': 'No autenticado'};
+    try {
+      final uri = Uri.parse('${ApiConfig.baseUrl}/users/change-password');
+      final res = await http.put(
+        uri,
+        headers: ApiConfig.authHeaders(token),
+        body: jsonEncode({'newPassword': newPassword}),
+      );
+      if (res.statusCode == 200) {
+        return {'success': true};
+      } else {
+        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        return {'success': false, 'message': data['message'] ?? 'Error al cambiar contraseña'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Error de conexión con el servidor'};
+    }
   }
 
   /// Limpiar toda la sesión (usado desde modo desarrollador)

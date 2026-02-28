@@ -4,6 +4,7 @@ import 'history_screen.dart';
 import 'profile_screen.dart';
 import 'settings_screen.dart';
 import 'admin_screen.dart';
+import 'doctor_management_screen.dart';
 import '../services/auth_service.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -40,12 +41,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   List<Widget> _getScreens() {
     if (_authService.isAdmin) {
+      // Admin: Inicio | Gestión de Médicos | Perfil
       return [
         HomeContent(),
-        AdminScreen(),
+        DoctorManagementScreen(),
         ProfileScreen(),
       ];
     } else if (_authService.isDoctor) {
+      // Doctor: Inicio | Gestión de Pacientes | Perfil
       return [
         HomeContent(),
         AdminScreen(),
@@ -72,7 +75,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         BottomNavigationBarItem(
           icon: Icon(Icons.admin_panel_settings_outlined),
           activeIcon: Icon(Icons.admin_panel_settings),
-          label: _authService.isAdmin ? 'Médicos' : 'Gestión',
+          label: _authService.isAdmin ? 'Médicos' : 'Pacientes',
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.person_outline),
@@ -110,7 +113,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     if (_authService.isAdmin || _authService.isDoctor) {
       switch (_currentIndex) {
         case 0: return 'RetiScan';
-        case 1: return _authService.isAdmin ? 'Gestión de Médicos' : 'Gestión';
+        case 1: return _authService.isAdmin ? 'Gestión de Médicos' : 'Gestión de Pacientes';
         case 2: return 'Perfil';
         default: return 'RetiScan';
       }

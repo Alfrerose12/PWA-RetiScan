@@ -4,6 +4,7 @@ import '../services/patient_service.dart';
 import '../widgets/responsive_wrapper.dart';
 import 'patient_detail_screen.dart';
 
+/// Pantalla de gestión de pacientes — visible solo para MÉDICOS
 class AdminScreen extends StatefulWidget {
   @override
   _AdminScreenState createState() => _AdminScreenState();
@@ -77,13 +78,11 @@ class _AdminScreenState extends State<AdminScreen>
   }
 
   void _updatePatientLocal(Patient updated) {
-    // Optimistic update first (instant UI response)
     setState(() {
       final idx = _patients.indexWhere((p) => p.id == updated.id);
       if (idx != -1) _patients[idx] = updated;
       _filterPatients(_searchController.text);
     });
-    // Then reload from server to ensure data consistency
     _loadPatients();
   }
 
@@ -113,7 +112,8 @@ class _AdminScreenState extends State<AdminScreen>
                 decoration: InputDecoration(
                   labelText: 'Nombre completo',
                   prefixIcon: Icon(Icons.person_outline),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12)),
                 ),
                 validator: (v) =>
                     (v == null || v.isEmpty) ? 'Requerido' : null,
@@ -125,7 +125,8 @@ class _AdminScreenState extends State<AdminScreen>
                 decoration: InputDecoration(
                   labelText: 'Edad',
                   prefixIcon: Icon(Icons.calendar_today_outlined),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12)),
                 ),
                 validator: (v) {
                   if (v == null || v.isEmpty) return 'Requerido';
@@ -140,7 +141,8 @@ class _AdminScreenState extends State<AdminScreen>
                 decoration: InputDecoration(
                   labelText: 'Teléfono (opcional)',
                   prefixIcon: Icon(Icons.phone_outlined),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12)),
                 ),
               ),
             ],
@@ -155,7 +157,8 @@ class _AdminScreenState extends State<AdminScreen>
             style: ElevatedButton.styleFrom(
               backgroundColor: Color(0xFF2563EB),
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
             ),
             onPressed: () {
               if (formKey.currentState!.validate()) Navigator.pop(ctx, true);
@@ -171,28 +174,25 @@ class _AdminScreenState extends State<AdminScreen>
         await _patientService.createPatient(
           fullName: nameCtrl.text.trim(),
           age: int.parse(ageCtrl.text.trim()),
-          phone: phoneCtrl.text.trim().isEmpty ? null : phoneCtrl.text.trim(),
+          phone:
+              phoneCtrl.text.trim().isEmpty ? null : phoneCtrl.text.trim(),
         );
-        // Recargar desde el servidor para reflejar datos reales
         await _loadPatients();
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Paciente "${nameCtrl.text.trim()}" creado'),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Paciente "${nameCtrl.text.trim()}" creado'),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ));
       } catch (e) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString().replaceAll('Exception: ', '')),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(e.toString().replaceAll('Exception: ', '')),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ));
       }
     }
   }
@@ -223,21 +223,17 @@ class _AdminScreenState extends State<AdminScreen>
         _patients.removeWhere((p) => p.id == patient.id);
         _filterPatients(_searchController.text);
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Paciente eliminado'),
-          backgroundColor: Colors.orange,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Paciente eliminado'),
+        backgroundColor: Colors.orange,
+        behavior: SnackBarBehavior.floating,
+      ));
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString().replaceAll('Exception: ', '')),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(e.toString().replaceAll('Exception: ', '')),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+      ));
     }
   }
 
@@ -297,7 +293,8 @@ class _AdminScreenState extends State<AdminScreen>
                   child: Padding(
                     padding: EdgeInsets.all(40),
                     child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2563EB)),
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(Color(0xFF2563EB)),
                     ),
                   ),
                 )
@@ -320,7 +317,8 @@ class _AdminScreenState extends State<AdminScreen>
       style: ElevatedButton.styleFrom(
         backgroundColor: Color(0xFF2563EB),
         foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       ),
     );
@@ -334,11 +332,9 @@ class _AdminScreenState extends State<AdminScreen>
           children: [
             Icon(Icons.error_outline, color: Colors.red, size: 48),
             SizedBox(height: 16),
-            Text(
-              _error!,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.red),
-            ),
+            Text(_error!,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.red)),
             SizedBox(height: 16),
             ElevatedButton.icon(
               onPressed: _loadPatients,
@@ -353,7 +349,8 @@ class _AdminScreenState extends State<AdminScreen>
 
   Widget _buildStatisticsSection() {
     final totalPatients = _patients.length;
-    final totalAnalyses = _patients.fold(0, (sum, p) => sum + p.totalAnalyses);
+    final totalAnalyses =
+        _patients.fold(0, (sum, p) => sum + p.totalAnalyses);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -366,17 +363,34 @@ class _AdminScreenState extends State<AdminScreen>
           mainAxisSpacing: 12,
           childAspectRatio: constraints.maxWidth > 900 ? 2.8 : 1.8,
           children: [
-            _buildStatCard('Total Pacientes', totalPatients.toString(), Icons.people, Colors.blue),
-            _buildStatCard('Análisis Totales', totalAnalyses.toString(), Icons.analytics, Colors.purple),
-            _buildStatCard('Con Análisis', _patients.where((p) => p.totalAnalyses > 0).length.toString(), Icons.check_circle, Colors.green),
-            _buildStatCard('Sin Análisis', _patients.where((p) => p.totalAnalyses == 0).length.toString(), Icons.pending_outlined, Colors.orange),
+            _buildStatCard('Total Pacientes', totalPatients.toString(),
+                Icons.people, Colors.blue),
+            _buildStatCard('Análisis Totales', totalAnalyses.toString(),
+                Icons.analytics, Colors.purple),
+            _buildStatCard(
+                'Con Análisis',
+                _patients
+                    .where((p) => p.totalAnalyses > 0)
+                    .length
+                    .toString(),
+                Icons.check_circle,
+                Colors.green),
+            _buildStatCard(
+                'Sin Análisis',
+                _patients
+                    .where((p) => p.totalAnalyses == 0)
+                    .length
+                    .toString(),
+                Icons.pending_outlined,
+                Colors.orange),
           ],
         );
       },
     );
   }
 
-  Widget _buildStatCard(String label, String value, IconData icon, Color color) {
+  Widget _buildStatCard(
+      String label, String value, IconData icon, Color color) {
     return Container(
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -387,7 +401,10 @@ class _AdminScreenState extends State<AdminScreen>
         ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: color.withOpacity(0.3), blurRadius: 15, offset: Offset(0, 5)),
+          BoxShadow(
+              color: color.withOpacity(0.3),
+              blurRadius: 15,
+              offset: Offset(0, 5)),
         ],
       ),
       child: Column(
@@ -395,11 +412,18 @@ class _AdminScreenState extends State<AdminScreen>
         children: [
           Icon(icon, color: Colors.white, size: 32),
           SizedBox(height: 8),
-          Text(value, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
+          Text(value,
+              style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white)),
           SizedBox(height: 4),
           Text(label,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: Colors.white.withOpacity(0.9), fontWeight: FontWeight.w500)),
+              style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.white.withOpacity(0.9),
+                  fontWeight: FontWeight.w500)),
         ],
       ),
     );
@@ -412,7 +436,10 @@ class _AdminScreenState extends State<AdminScreen>
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Theme.of(context).dividerColor),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: Offset(0, 2)),
+          BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: Offset(0, 2)),
         ],
       ),
       child: TextField(
@@ -420,7 +447,8 @@ class _AdminScreenState extends State<AdminScreen>
         onChanged: _filterPatients,
         decoration: InputDecoration(
           hintText: 'Buscar paciente por nombre...',
-          prefixIcon: Icon(Icons.search, color: Theme.of(context).colorScheme.primary),
+          prefixIcon: Icon(Icons.search,
+              color: Theme.of(context).colorScheme.primary),
           suffixIcon: _searchController.text.isNotEmpty
               ? IconButton(
                   icon: Icon(Icons.clear),
@@ -444,7 +472,8 @@ class _AdminScreenState extends State<AdminScreen>
           padding: EdgeInsets.all(40),
           child: Text(
             'No se encontraron pacientes',
-            style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color),
+            style: TextStyle(
+                color: Theme.of(context).textTheme.bodyMedium?.color),
           ),
         ),
       );
@@ -453,7 +482,8 @@ class _AdminScreenState extends State<AdminScreen>
       shrinkWrap: true,
       physics: NeverScrollableScrollPhysics(),
       itemCount: _filteredPatients.length,
-      itemBuilder: (context, index) => _buildPatientCard(_filteredPatients[index]),
+      itemBuilder: (context, index) =>
+          _buildPatientCard(_filteredPatients[index]),
     );
   }
 
@@ -464,7 +494,10 @@ class _AdminScreenState extends State<AdminScreen>
         color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: Offset(0, 4)),
+          BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: Offset(0, 4)),
         ],
       ),
       child: Material(
@@ -487,7 +520,8 @@ class _AdminScreenState extends State<AdminScreen>
                 CircleAvatar(
                   radius: 30,
                   backgroundColor: Color(0xFF2563EB).withOpacity(0.1),
-                  child: Icon(Icons.person, color: Color(0xFF2563EB), size: 30),
+                  child:
+                      Icon(Icons.person, color: Color(0xFF2563EB), size: 30),
                 ),
                 SizedBox(width: 16),
                 Expanded(
@@ -499,7 +533,8 @@ class _AdminScreenState extends State<AdminScreen>
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: Theme.of(context).textTheme.bodyLarge?.color,
+                          color:
+                              Theme.of(context).textTheme.bodyLarge?.color,
                         ),
                       ),
                       SizedBox(height: 4),
@@ -507,7 +542,8 @@ class _AdminScreenState extends State<AdminScreen>
                         '${patient.age} años • ${patient.totalAnalyses} análisis',
                         style: TextStyle(
                           fontSize: 13,
-                          color: Theme.of(context).textTheme.bodyMedium?.color,
+                          color:
+                              Theme.of(context).textTheme.bodyMedium?.color,
                         ),
                       ),
                       if (patient.phone != null) ...[
@@ -516,7 +552,11 @@ class _AdminScreenState extends State<AdminScreen>
                           patient.phone!,
                           style: TextStyle(
                             fontSize: 12,
-                            color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.8),
+                            color: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.color
+                                ?.withOpacity(0.8),
                           ),
                         ),
                       ],
@@ -524,7 +564,8 @@ class _AdminScreenState extends State<AdminScreen>
                   ),
                 ),
                 IconButton(
-                  icon: Icon(Icons.delete_outline, color: Colors.red.withOpacity(0.7)),
+                  icon: Icon(Icons.delete_outline,
+                      color: Colors.red.withOpacity(0.7)),
                   onPressed: () => _deletePatient(patient),
                 ),
               ],
@@ -545,7 +586,10 @@ class _AdminScreenState extends State<AdminScreen>
           width: 1,
         ),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 16, offset: Offset(0, 6)),
+          BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 16,
+              offset: Offset(0, 6)),
         ],
       ),
       clipBehavior: Clip.antiAlias,
@@ -558,7 +602,6 @@ class _AdminScreenState extends State<AdminScreen>
             )
           : Column(
               children: [
-                // Encabezado
                 Container(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
@@ -567,7 +610,8 @@ class _AdminScreenState extends State<AdminScreen>
                       end: Alignment.centerRight,
                     ),
                   ),
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                  padding:
+                      EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                   child: Row(
                     children: [
                       _tableHeader('Paciente', flex: 4),
@@ -579,7 +623,6 @@ class _AdminScreenState extends State<AdminScreen>
                     ],
                   ),
                 ),
-                // Filas
                 ..._filteredPatients.asMap().entries.map((entry) {
                   final patient = entry.value;
                   final isEven = entry.key.isEven;
@@ -596,7 +639,11 @@ class _AdminScreenState extends State<AdminScreen>
       flex: flex,
       child: Text(
         label,
-        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.white, letterSpacing: 0.5),
+        style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 12,
+            color: Colors.white,
+            letterSpacing: 0.5),
       ),
     );
   }
@@ -607,7 +654,7 @@ class _AdminScreenState extends State<AdminScreen>
         : Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.25);
 
     return StatefulBuilder(
-      builder: (context, setHoverState) {
+      builder: (context, _) {
         bool isHovered = false;
         return StatefulBuilder(
           builder: (context, setH) {
@@ -619,20 +666,27 @@ class _AdminScreenState extends State<AdminScreen>
                 duration: Duration(milliseconds: 180),
                 curve: Curves.easeInOut,
                 decoration: BoxDecoration(
-                  color: isHovered ? Color(0xFF2563EB).withOpacity(0.07) : baseColor,
+                  color: isHovered
+                      ? Color(0xFF2563EB).withOpacity(0.07)
+                      : baseColor,
                   border: Border(
                     left: BorderSide(
-                      color: isHovered ? Color(0xFF2563EB) : Colors.transparent,
+                      color: isHovered
+                          ? Color(0xFF2563EB)
+                          : Colors.transparent,
                       width: 3,
                     ),
                     bottom: isLast
                         ? BorderSide.none
                         : BorderSide(
-                            color: Theme.of(context).dividerColor.withOpacity(0.5),
+                            color: Theme.of(context)
+                                .dividerColor
+                                .withOpacity(0.5),
                             width: 1),
                   ),
                 ),
-                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                padding:
+                    EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                 child: GestureDetector(
                   onTap: () => Navigator.push(
                     context,
@@ -645,28 +699,30 @@ class _AdminScreenState extends State<AdminScreen>
                   ),
                   child: Row(
                     children: [
-                      // Nombre
                       Expanded(
                         flex: 4,
                         child: Row(
                           children: [
                             CircleAvatar(
                               radius: 17,
-                              backgroundColor: Color(0xFF2563EB).withOpacity(0.12),
-                              child: Icon(Icons.person, color: Color(0xFF2563EB), size: 17),
+                              backgroundColor:
+                                  Color(0xFF2563EB).withOpacity(0.12),
+                              child: Icon(Icons.person,
+                                  color: Color(0xFF2563EB), size: 17),
                             ),
                             SizedBox(width: 10),
                             Flexible(
                               child: Text(
                                 patient.fullName,
-                                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                                style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14),
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ],
                         ),
                       ),
-                      // Teléfono
                       Expanded(
                         flex: 3,
                         child: Text(
@@ -674,56 +730,71 @@ class _AdminScreenState extends State<AdminScreen>
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 13,
-                            color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.75),
+                            color: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.color
+                                ?.withOpacity(0.75),
                           ),
                         ),
                       ),
-                      // Edad
                       Expanded(
                         flex: 2,
-                        child: Text(
-                          '${patient.age} años',
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-                        ),
+                        child: Text('${patient.age} años',
+                            style: TextStyle(
+                                fontSize: 13, fontWeight: FontWeight.w500)),
                       ),
-                      // Análisis
                       Expanded(
                         flex: 2,
                         child: Row(
                           children: [
-                            Icon(Icons.analytics_outlined, size: 14,
-                                color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5)),
+                            Icon(Icons.analytics_outlined,
+                                size: 14,
+                                color: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.color
+                                    ?.withOpacity(0.5)),
                             SizedBox(width: 4),
-                            Text(
-                              patient.totalAnalyses.toString(),
-                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-                            ),
+                            Text(patient.totalAnalyses.toString(),
+                                style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500)),
                           ],
                         ),
                       ),
-                      // Última visita
                       Expanded(
                         flex: 3,
                         child: Row(
                           children: [
-                            Icon(Icons.schedule_outlined, size: 14,
-                                color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5)),
+                            Icon(Icons.schedule_outlined,
+                                size: 14,
+                                color: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.color
+                                    ?.withOpacity(0.5)),
                             SizedBox(width: 4),
                             Text(
-                              patient.lastVisit != null ? _formatDate(patient.lastVisit!) : '—',
+                              patient.lastVisit != null
+                                  ? _formatDate(patient.lastVisit!)
+                                  : '—',
                               style: TextStyle(
-                                fontSize: 13,
-                                color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.8),
-                              ),
+                                  fontSize: 13,
+                                  color: Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium
+                                      ?.color
+                                      ?.withOpacity(0.8)),
                             ),
                           ],
                         ),
                       ),
-                      // Eliminar
                       Expanded(
                         flex: 1,
                         child: IconButton(
-                          icon: Icon(Icons.delete_outline, color: Colors.red.withOpacity(0.7), size: 18),
+                          icon: Icon(Icons.delete_outline,
+                              color: Colors.red.withOpacity(0.7), size: 18),
                           onPressed: () => _deletePatient(patient),
                           tooltip: 'Eliminar',
                         ),
