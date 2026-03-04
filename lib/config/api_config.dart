@@ -1,10 +1,21 @@
 // Configuración global de la API RetiScan
-// Cambia baseUrl si el backend corre en otro host/puerto.
+// La URL base se deriva automáticamente del host desde el que se sirve la app,
+// por lo que funciona con cualquier IP sin necesidad de recompilar.
+
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html;
 
 class ApiConfig {
-  // Para desarrollo local desde el mismo PC usa: http://localhost:3000/api
-  // Para acceder desde celular (misma red WiFi), usa tu IP local:
-  static const String baseUrl = 'http://192.168.1.83:3000/api';
+  /// Puerto donde corre el backend Node/Express.
+  static const int _apiPort = 3000;
+
+  /// URL base de la API, construida dinámicamente a partir del host del navegador.
+  /// Ejemplo: si accedes a http://192.168.1.50:5000, esta propiedad devuelve
+  ///          http://192.168.1.50:3000/api
+  static String get baseUrl {
+    final host = html.window.location.hostname ?? 'localhost';
+    return 'http://$host:$_apiPort/api';
+  }
 
   // Headers para requests autenticados
   static Map<String, String> authHeaders(String token) => {
@@ -17,3 +28,4 @@ class ApiConfig {
     'Content-Type': 'application/json',
   };
 }
+
