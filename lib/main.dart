@@ -3,7 +3,12 @@ import 'package:provider/provider.dart';
 import 'screens/splash_screen.dart';
 import 'services/theme_service.dart';
 
-void main() {
+import 'services/notification_service.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await NotificationService.initialize();
+  
   runApp(
     ChangeNotifierProvider(
       create: (_) => ThemeService(),

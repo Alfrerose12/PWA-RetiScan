@@ -18,7 +18,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: Duration(milliseconds: 600),
+      duration: Duration(milliseconds: 300),
       vsync: this,
     );
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
@@ -393,21 +393,14 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   Widget _buildRoleCard(String role) {
     final isDoctor = role == 'MEDICO';
-    final isAdmin = role == 'ADMINISTRADOR';
 
-    final Color color = isAdmin
-        ? Colors.deepPurple
-        : isDoctor
+    final Color color = isDoctor
             ? Colors.blue
             : Colors.green;
-    final IconData icon = isAdmin
-        ? Icons.admin_panel_settings_outlined
-        : isDoctor
+    final IconData icon = isDoctor
             ? Icons.medical_services_outlined
             : Icons.person_outline;
-    final String label = isAdmin
-        ? 'Administrador'
-        : isDoctor
+    final String label = isDoctor
             ? 'Médico'
             : 'Paciente';
 

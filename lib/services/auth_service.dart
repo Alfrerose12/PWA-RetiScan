@@ -15,7 +15,6 @@ class AuthService {
   User? get currentUser => _currentUser;
   bool get isAuthenticated => _currentUser != null;
   bool get isDoctor => _currentUser?.isDoctor ?? false;
-  bool get isAdmin  => _currentUser?.isAdmin  ?? false;
   bool get isClient => _currentUser?.isClient ?? true;
 
   /// Token guardado en localStorage (persiste al recargar, se borra al cerrar sesión)
@@ -108,6 +107,40 @@ class AuthService {
     }
   }
 
+  /// Solicitar código 2FA sin autenticar (para registro) → POST /auth/2fa/send-unauth
+  Future<String?> request2FAUnauth(String email) async {
+    try {
+      final uri = Uri.parse('${ApiConfig.baseUrl}/auth/2fa/send-unauth');
+      final res = await http.post(
+        uri,
+        headers: ApiConfig.jsonHeaders,
+        body: jsonEncode({'email': email}),
+      );
+      if (res.statusCode == 200 || res.statusCode == 201) {
+        final body = jsonDecode(res.body) as Map<String, dynamic>;
+        return body['code']?.toString();
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Verificar código 2FA sin autenticar (para registro) → POST /auth/2fa/verify-unauth
+  Future<bool> verify2FAUnauth(String email, String code) async {
+    try {
+      final uri = Uri.parse('${ApiConfig.baseUrl}/auth/2fa/verify-unauth');
+      final res = await http.post(
+        uri,
+        headers: ApiConfig.jsonHeaders,
+        body: jsonEncode({'email': email, 'code': code}),
+      );
+      return res.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Verificar código 2FA → POST /auth/2fa/verify
   Future<bool> verify2FA(String code) async {
     final token = _token;
@@ -164,6 +197,42 @@ class AuthService {
         return {
           'success': false,
           'message': body['message'] ?? 'Error al registrar usuario',
+        };
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Error de conexión con el servidor'};
+    }
+  }
+
+  /// POST /users/create-patient — create patient (only for Doctors/Admins)
+  Future<Map<String, dynamic>> createPatientAccount({
+    required String email,
+    required String password,
+    String? fullName,
+  }) async {
+    final token = _token;
+    if (token == null) return {'success': false, 'message': 'No autenticado'};
+    
+    try {
+      final uri = Uri.parse('${ApiConfig.baseUrl}/users/create-patient');
+      final res = await http.post(
+        uri,
+        headers: ApiConfig.authHeaders(token),
+        body: jsonEncode({
+          'email': email,
+          'password': password,
+          if (fullName != null && fullName.isNotEmpty) 'name': fullName,
+        }),
+      );
+
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+
+      if (res.statusCode == 201 || res.statusCode == 200) {
+        return {'success': true};
+      } else {
+        return {
+          'success': false,
+          'message': body['error'] ?? body['message'] ?? 'Error al crear paciente',
         };
       }
     } catch (e) {

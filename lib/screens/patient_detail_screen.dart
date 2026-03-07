@@ -36,7 +36,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
     super.initState();
     _patient = widget.patient;
     _fadeController = AnimationController(
-      duration: Duration(milliseconds: 800),
+      duration: Duration(milliseconds: 400),
       vsync: this,
     );
     _fadeAnimation = CurvedAnimation(parent: _fadeController, curve: Curves.easeIn);

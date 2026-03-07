@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
-import 'two_factor_screen.dart';
 import '../widgets/glassmorphic_card.dart';
 import '../widgets/animated_button.dart';
 import '../services/auth_service.dart';
@@ -13,14 +12,35 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen>
     with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
+  final _pageController = PageController();
+  
+  // Section 1
   final _nameController = TextEditingController();
+  final _usernameController = TextEditingController();
+  
+  // Section 2
+  String? _selectedGender;
+  DateTime? _selectedBirthDate;
+  final TextEditingController _birthDateController = TextEditingController();
+  
+  // Section 3
   final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
+  
+  // Section 3.1 & 3.2
+  String _selected2FAMethod = 'email'; // 'email' or 'sms'
+  final _tokenController = TextEditingController();
+  bool _isVerifyingToken = false;
+  
+  // Section 4
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  
   final AuthService _authService = AuthService();
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _isLoading = false;
+  int _currentPage = 0;
 
   late AnimationController _slideController;
   late Animation<Offset> _slideAnimation;
@@ -77,24 +97,113 @@ class _RegisterScreenState extends State<RegisterScreen>
     _fadeController.dispose();
     _logoController.dispose();
     _particleController.dispose();
+    _pageController.dispose();
     _nameController.dispose();
+    _usernameController.dispose();
+    _birthDateController.dispose();
     _emailController.dispose();
+    _phoneController.dispose();
+    _tokenController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
   }
 
+  void _nextPage() {
+    if (_formKey.currentState!.validate()) {
+      // Validate page specific constraints
+      if (_currentPage == 1) {
+        if (_selectedGender == null) {
+          _showError('Por favor selecciona tu género');
+          return;
+        }
+        if (_selectedBirthDate == null) {
+          _showError('Por favor selecciona tu fecha de nacimiento');
+          return;
+        }
+      }
+      
+      if (_currentPage < 4) {
+        if (_currentPage == 2) { // Sending 2FA before entering Token page
+          _send2FACode();
+        }
+        _pageController.nextPage(
+          duration: Duration(milliseconds: 400),
+          curve: Curves.easeInOut,
+        );
+      }
+    }
+  }
+  
+  void _previousPage() {
+    if (_currentPage > 0) {
+      _pageController.previousPage(
+        duration: Duration(milliseconds: 400),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+  }
+
+  Future<void> _send2FACode() async {
+    setState(() => _isLoading = true);
+    final email = _emailController.text.trim();
+    // Simulate SMS vs Email based on _selected2FAMethod for the frontend.
+    // In this backend, sendUnauthOtp uses email.
+    final code = await _authService.request2FAUnauth(email);
+    setState(() => _isLoading = false);
+    
+    if (code != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Código de verificación enviado. (Cód: $code)'),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 5),
+        )
+      );
+    } else {
+      _showError('Error al enviar el código de verificación.');
+    }
+  }
+
+  Future<void> _verifyToken() async {
+    if (_tokenController.text.trim().isEmpty) {
+      _showError('Por favor ingresa el código');
+      return;
+    }
+    
+    setState(() => _isVerifyingToken = true);
+    final isValid = await _authService.verify2FAUnauth(
+      _emailController.text.trim(),
+      _tokenController.text.trim()
+    );
+    setState(() => _isVerifyingToken = false);
+    
+    if (isValid) {
+      _pageController.nextPage(
+        duration: Duration(milliseconds: 400),
+        curve: Curves.easeInOut,
+      );
+    } else {
+      _showError('Código inválido o expirado.');
+    }
+  }
+
   Future<void> _register() async {
     if (_formKey.currentState!.validate()) {
       if (_passwordController.text != _confirmPasswordController.text) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Las contraseñas no coinciden'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
+        _showError('Las contraseñas no coinciden');
         return;
       }
 
@@ -106,47 +215,20 @@ class _RegisterScreenState extends State<RegisterScreen>
         password: _passwordController.text,
       );
 
-      // Si el registro fue exitoso pero la API no devolvió token,
-      // hacemos login automático para obtener el JWT antes de llamar a 2FA.
-      // (El endpoint /auth/2fa/send requiere authMiddleware)
-      if (result['success'] == true) {
-        // Ignoramos el resultado del login: si falla, request2FA() lo manejará.
-        // Si ya tenía token guardado del registro, esto lo refresca.
-        await _authService.login(
-          _emailController.text.trim(),
-          _passwordController.text,
-        );
-      }
-
       setState(() => _isLoading = false);
 
       if (result['success'] == true) {
-        // Registro exitoso → verificar correo con 2FA
-        Navigator.pushReplacement(
-          context,
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) =>
-                TwoFactorScreen(
-              userEmail: _emailController.text.trim(),
-              afterRegister: true,
-            ),
-            transitionsBuilder:
-                (context, animation, secondaryAnimation, child) {
-              return FadeTransition(opacity: animation, child: child);
-            },
-            transitionDuration: Duration(milliseconds: 400),
+        // Registro exitoso, regresar al login
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Cuenta creada exitosamente'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
           ),
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result['message'] ?? 'Error al registrar usuario'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10)),
-          ),
-        );
+        _showError(result['message'] ?? 'Error al registrar usuario');
       }
     }
   }
@@ -175,9 +257,27 @@ class _RegisterScreenState extends State<RegisterScreen>
                           children: [
                             _buildLogoHeader(),
                             SizedBox(height: 32),
-                            _buildRegisterCard(),
+                            _buildWizardProgress(),
                             SizedBox(height: 20),
-                            _buildLoginLink(),
+                            ConstrainedBox(
+                              constraints: BoxConstraints(maxHeight: 450),
+                              child: PageView(
+                                controller: _pageController,
+                                physics: NeverScrollableScrollPhysics(),
+                                onPageChanged: (index) {
+                                  setState(() {
+                                    _currentPage = index;
+                                  });
+                                },
+                                children: [
+                                  _buildSection1(),
+                                  _buildSection2(),
+                                  _buildSection3(),
+                                  _buildSection3_2(), // Token Verification
+                                  _buildSection4(), // Password
+                                ],
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -290,17 +390,45 @@ class _RegisterScreenState extends State<RegisterScreen>
     );
   }
 
-  Widget _buildRegisterCard() {
+  Widget _buildWizardProgress() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(5, (index) {
+        return Container(
+          margin: EdgeInsets.symmetric(horizontal: 4),
+          width: _currentPage == index ? 24 : 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: _currentPage >= index ? Colors.blue : Colors.white.withOpacity(0.3),
+            borderRadius: BorderRadius.circular(4),
+          ),
+        );
+      }),
+    );
+  }
+
+  Widget _buildSection1() {
     return GlassmorphicCard(
       borderRadius: 24,
       padding: EdgeInsets.all(28),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
+          Text('Información Personal', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+          SizedBox(height: 16),
           _buildTextField(
             controller: _nameController,
             label: 'Nombre completo',
             icon: Icons.person_outline,
             delay: 400,
+            onChanged: (val) {
+              // Auto-generate username
+              if (val.isNotEmpty) {
+                _usernameController.text = val.toLowerCase().replaceAll(' ', '_') + '${math.Random().nextInt(1000)}';
+              } else {
+                _usernameController.text = '';
+              }
+            },
             validator: (value) {
               if (value == null || value.isEmpty) return 'Ingresa tu nombre';
               if (value.trim().length < 2) return 'Nombre demasiado corto';
@@ -309,10 +437,67 @@ class _RegisterScreenState extends State<RegisterScreen>
           ),
           SizedBox(height: 16),
           _buildTextField(
+            controller: _usernameController,
+            label: 'Nombre de usuario',
+            icon: Icons.account_circle_outlined,
+            delay: 500,
+            validator: (value) {
+              if (value == null || value.isEmpty) return 'Ingresa un usuario';
+              return null;
+            },
+          ),
+          SizedBox(height: 28),
+          _buildNavButtons(),
+          _buildLoginLink(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSection2() {
+    return GlassmorphicCard(
+      borderRadius: 24,
+      padding: EdgeInsets.all(28),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('Datos Demográficos', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+          SizedBox(height: 16),
+          _buildDropdownField(
+            label: 'Género',
+            icon: Icons.wc,
+            value: _selectedGender,
+            items: ['Masculino', 'Femenino', 'Otro', 'Prefiero no decirlo'],
+            onChanged: (val) => setState(() => _selectedGender = val),
+          ),
+          SizedBox(height: 16),
+          _buildDateField(
+            controller: _birthDateController,
+            label: 'Fecha de nacimiento',
+            icon: Icons.calendar_today,
+          ),
+          SizedBox(height: 28),
+          _buildNavButtons(),
+          _buildLoginLink(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSection3() {
+    return GlassmorphicCard(
+      borderRadius: 24,
+      padding: EdgeInsets.all(28),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('Contacto y Verificación', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+          SizedBox(height: 16),
+          _buildTextField(
             controller: _emailController,
             label: 'Correo electrónico',
             icon: Icons.email_outlined,
-            delay: 500,
+            delay: 400,
             keyboardType: TextInputType.emailAddress,
             validator: (value) {
               if (value == null || value.isEmpty) return 'Ingresa tu correo';
@@ -321,11 +506,102 @@ class _RegisterScreenState extends State<RegisterScreen>
             },
           ),
           SizedBox(height: 16),
+          _buildTextField(
+            controller: _phoneController,
+            label: 'Teléfono',
+            icon: Icons.phone_outlined,
+            delay: 500,
+            keyboardType: TextInputType.phone,
+            validator: (value) {
+              if (value == null || value.isEmpty) return 'Ingresa tu teléfono';
+              if (value.length < 10) return 'Teléfono inválido';
+              return null;
+            },
+          ),
+          SizedBox(height: 16),
+          _buildDropdownField(
+            label: 'Método de Autenticación 2FA',
+            icon: Icons.security,
+            value: _selected2FAMethod,
+            items: ['email', 'sms'], // Underlying values, you can use a map to display nice labels
+            onChanged: (val) => setState(() => _selected2FAMethod = val!),
+          ),
+          SizedBox(height: 28),
+          _buildNavButtons(),
+          _buildLoginLink(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSection3_2() {
+    return GlassmorphicCard(
+      borderRadius: 24,
+      padding: EdgeInsets.all(28),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('Verificación 2FA', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+          SizedBox(height: 8),
+          Text('Ingresa el código que enviamos a tu $_selected2FAMethod', textAlign: TextAlign.center, style: TextStyle(color: Colors.white70)),
+          SizedBox(height: 16),
+          _buildTextField(
+            controller: _tokenController,
+            label: 'Código de verificación',
+            icon: Icons.lock_clock,
+            delay: 400,
+            keyboardType: TextInputType.number,
+          ),
+          SizedBox(height: 16),
+          TextButton(
+            onPressed: () => _send2FACode(),
+            child: Text('Reenviar código', style: TextStyle(color: Colors.white)),
+          ),
+          SizedBox(height: 28),
+          Row(
+            children: [
+              Expanded(
+                child: AnimatedButton(
+                  text: 'Atrás',
+                  onPressed: _previousPage,
+                  backgroundColor: Colors.transparent,
+                  textColor: Colors.white,
+                  borderColor: Colors.white,
+                  height: 48,
+                ),
+              ),
+              SizedBox(width: 16),
+              Expanded(
+                child: AnimatedButton(
+                  text: _isVerifyingToken ? 'Verificando...' : 'Verificar',
+                  onPressed: _isVerifyingToken ? () {} : _verifyToken,
+                  backgroundColor: Colors.white,
+                  textColor: Color(0xFF2D385E),
+                  height: 48,
+                ),
+              ),
+            ],
+          ),
+          _buildLoginLink(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSection4() {
+    return GlassmorphicCard(
+      borderRadius: 24,
+      padding: EdgeInsets.all(28),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('Seguridad de la Cuenta', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+          SizedBox(height: 16),
           _buildPasswordField(
             controller: _passwordController,
             label: 'Contraseña',
             obscureText: _obscurePassword,
-            delay: 600,
+            delay: 400,
             onToggle: () => setState(() => _obscurePassword = !_obscurePassword),
           ),
           SizedBox(height: 16),
@@ -333,15 +609,67 @@ class _RegisterScreenState extends State<RegisterScreen>
             controller: _confirmPasswordController,
             label: 'Confirmar Contraseña',
             obscureText: _obscureConfirmPassword,
-            delay: 700,
+            delay: 500,
             isConfirm: true,
-            onToggle: () =>
-                setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+            onToggle: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
           ),
           SizedBox(height: 28),
-          _buildRegisterButton(),
+          Row(
+            children: [
+              Expanded(
+                child: AnimatedButton(
+                  text: 'Atrás',
+                  onPressed: _previousPage,
+                  backgroundColor: Colors.transparent,
+                  textColor: Colors.white,
+                  borderColor: Colors.white,
+                  height: 48,
+                ),
+              ),
+              SizedBox(width: 16),
+              Expanded(
+                child: AnimatedButton(
+                  text: _isLoading ? '...' : 'Registrar',
+                  onPressed: _isLoading ? () {} : _register,
+                  backgroundColor: Colors.white,
+                  textColor: Color(0xFF2D385E),
+                  height: 48,
+                ),
+              ),
+            ],
+          ),
+          _buildLoginLink(),
         ],
       ),
+    );
+  }
+
+  Widget _buildNavButtons() {
+    return Row(
+      children: [
+        if (_currentPage > 0) ...[
+          Expanded(
+            child: AnimatedButton(
+              text: 'Atrás',
+              onPressed: _previousPage,
+              backgroundColor: Colors.transparent,
+              textColor: Colors.white,
+              borderColor: Colors.white,
+              height: 48,
+            ),
+          ),
+          SizedBox(width: 16),
+        ],
+        Expanded(
+          child: AnimatedButton(
+            text: 'Siguiente',
+            onPressed: _nextPage,
+            backgroundColor: Colors.white,
+            textColor: Color(0xFF2D385E),
+            height: 48,
+          ),
+        ),
+      ],
     );
   }
 
@@ -353,6 +681,7 @@ class _RegisterScreenState extends State<RegisterScreen>
     required int delay,
     TextInputType keyboardType = TextInputType.text,
     String? Function(String?)? validator,
+    void Function(String)? onChanged,
   }) {
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0.0, end: 1.0),
@@ -391,7 +720,82 @@ class _RegisterScreenState extends State<RegisterScreen>
           ),
         ),
         validator: validator,
+        onChanged: onChanged,
       ),
+    );
+  }
+
+  Widget _buildDropdownField({
+    required String label,
+    required IconData icon,
+    required String? value,
+    required List<String> items,
+    required void Function(String?) onChanged,
+  }) {
+    return DropdownButtonFormField<String>(
+      value: value,
+      dropdownColor: Color(0xFF2D385E),
+      style: TextStyle(color: Colors.white),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: TextStyle(color: Colors.white.withOpacity(0.8)),
+        prefixIcon: Icon(icon, color: Colors.white.withOpacity(0.8)),
+        filled: true,
+        fillColor: Colors.white.withOpacity(0.1),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: Colors.white.withOpacity(0.3), width: 1.5),
+        ),
+      ),
+      items: items.map((e) => DropdownMenuItem(value: e, child: Text(Map<String,String>.from({'email':'Correo Electrónico', 'sms':'SMS (Simulado)'})[e] ?? e))).toList(),
+      onChanged: onChanged,
+      validator: (val) => val == null ? 'Selecciona una opción' : null,
+    );
+  }
+
+  Widget _buildDateField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+  }) {
+    return TextFormField(
+      controller: controller,
+      readOnly: true,
+      style: TextStyle(color: Colors.white),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: TextStyle(color: Colors.white.withOpacity(0.8)),
+        prefixIcon: Icon(icon, color: Colors.white.withOpacity(0.8)),
+        filled: true,
+        fillColor: Colors.white.withOpacity(0.1),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: Colors.white.withOpacity(0.3), width: 1.5),
+        ),
+      ),
+      onTap: () async {
+        final date = await showDatePicker(
+          context: context,
+          initialDate: DateTime(2000),
+          firstDate: DateTime(1900),
+          lastDate: DateTime.now(),
+        );
+        if (date != null) {
+          setState(() {
+            _selectedBirthDate = date;
+            controller.text = "${date.day}/${date.month}/${date.year}";
+          });
+        }
+      },
+      validator: (val) => val == null || val.isEmpty ? 'Selecciona una fecha' : null,
     );
   }
 
@@ -457,37 +861,27 @@ class _RegisterScreenState extends State<RegisterScreen>
     );
   }
 
-  Widget _buildRegisterButton() {
-    return SizedBox(
-      width: double.infinity,
-      child: AnimatedButton(
-        text: 'Registrarse',
-        onPressed: _isLoading ? () {} : _register,
-        backgroundColor: Colors.white,
-        textColor: Color(0xFF2D385E),
-        height: 56,
-      ),
-    );
-  }
-
   Widget _buildLoginLink() {
-    return TextButton(
-      onPressed: () => Navigator.pop(context),
-      child: Text.rich(
-        TextSpan(
-          text: '¿Ya tienes cuenta? ',
-          style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 15),
-          children: [
-            TextSpan(
-              text: 'Inicia sesión',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 15,
-                decoration: TextDecoration.underline,
+    return Padding(
+      padding: const EdgeInsets.only(top: 16.0),
+      child: TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: Text.rich(
+          TextSpan(
+            text: '¿Ya tienes cuenta? ',
+            style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 15),
+            children: [
+              TextSpan(
+                text: 'Inicia sesión',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                  decoration: TextDecoration.underline,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

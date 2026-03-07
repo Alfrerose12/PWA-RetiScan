@@ -13,9 +13,8 @@ class User {
     this.token,
   });
 
-  // La API devuelve role como "MEDICO", "PACIENTE" o "ADMINISTRADOR"
+  // La API devuelve role como "MEDICO" o "PACIENTE"
   bool get isDoctor => role == 'MEDICO';
-  bool get isAdmin  => role == 'ADMINISTRADOR';
   bool get isClient => role == 'PACIENTE';
 
   Map<String, dynamic> toJson() {

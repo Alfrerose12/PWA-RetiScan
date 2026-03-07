@@ -3,8 +3,7 @@ import 'capture_screen.dart';
 import 'history_screen.dart';
 import 'profile_screen.dart';
 import 'settings_screen.dart';
-import 'admin_screen.dart';
-import 'doctor_management_screen.dart';
+import 'patient_management_screen.dart';
 import '../services/auth_service.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -40,18 +39,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   List<Widget> _getScreens() {
-    if (_authService.isAdmin) {
-      // Admin: Inicio | Gestión de Médicos | Perfil
-      return [
-        HomeContent(),
-        DoctorManagementScreen(),
-        ProfileScreen(),
-      ];
-    } else if (_authService.isDoctor) {
+    if (_authService.isDoctor) {
       // Doctor: Inicio | Gestión de Pacientes | Perfil
       return [
         HomeContent(),
-        AdminScreen(),
+        PatientManagementScreen(),
         ProfileScreen(),
       ];
     } else {
@@ -65,7 +57,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   List<BottomNavigationBarItem> _getNavItems() {
-    if (_authService.isAdmin || _authService.isDoctor) {
+    if (_authService.isDoctor) {
       return [
         BottomNavigationBarItem(
           icon: Icon(Icons.home_outlined),
@@ -75,7 +67,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         BottomNavigationBarItem(
           icon: Icon(Icons.admin_panel_settings_outlined),
           activeIcon: Icon(Icons.admin_panel_settings),
-          label: _authService.isAdmin ? 'Médicos' : 'Pacientes',
+          label: 'Pacientes',
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.person_outline),
@@ -110,10 +102,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   String _getAppBarTitle() {
-    if (_authService.isAdmin || _authService.isDoctor) {
+    if (_authService.isDoctor) {
       switch (_currentIndex) {
         case 0: return 'RetiScan';
-        case 1: return _authService.isAdmin ? 'Gestión de Médicos' : 'Gestión de Pacientes';
+        case 1: return 'Gestión de Pacientes';
         case 2: return 'Perfil';
         default: return 'RetiScan';
       }
@@ -133,6 +125,74 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final screens = _getScreens();
     final navItems = _getNavItems();
 
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isDesktop = constraints.maxWidth >= 800;
+        if (isDesktop) {
+          return _buildDesktopLayout(screens, navItems);
+        } else {
+          return _buildMobileLayout(screens, navItems);
+        }
+      },
+    );
+  }
+
+  Widget _buildDesktopLayout(List<Widget> screens, List<BottomNavigationBarItem> navItems) {
+    return Scaffold(
+      body: Row(
+        children: [
+          NavigationRail(
+            selectedIndex: _currentIndex,
+            onDestinationSelected: (index) {
+              setState(() => _currentIndex = index);
+              _fabController.reset();
+              _fabController.forward();
+            },
+            labelType: NavigationRailLabelType.all,
+            leading: Column(
+              children: [
+                SizedBox(height: 24),
+                Icon(Icons.remove_red_eye, size: 48, color: Theme.of(context).colorScheme.primary),
+                SizedBox(height: 8),
+                Text('RetiScan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                SizedBox(height: 24),
+              ],
+            ),
+            destinations: navItems.map((item) {
+              return NavigationRailDestination(
+                icon: item.icon,
+                selectedIcon: item.activeIcon,
+                label: Text(item.label!),
+              );
+            }).toList(),
+            trailing: Expanded(
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 24.0),
+                  child: IconButton(
+                    icon: Icon(Icons.settings),
+                    onPressed: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => Scaffold(appBar: AppBar(title: Text('Ajustes')), body: SettingsScreen())));
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ),
+          VerticalDivider(thickness: 1, width: 1),
+          Expanded(
+            child: AnimatedSwitcher(
+              duration: Duration(milliseconds: 300),
+              child: screens[_currentIndex],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileLayout(List<Widget> screens, List<BottomNavigationBarItem> navItems) {
     return Scaffold(
       appBar: AppBar(
         title: Row(
@@ -150,11 +210,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  _authService.isAdmin
-                      ? 'Administrador'
-                      : _authService.isDoctor
-                          ? 'Médico'
-                          : 'Paciente',
+                  _authService.isDoctor ? 'Médico' : 'Paciente',
                   style: TextStyle(
                     fontSize: 12,
                     color: Theme.of(context).colorScheme.primary,
@@ -229,7 +285,7 @@ class _HomeContentState extends State<HomeContent>
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: Duration(milliseconds: 1200),
+      duration: Duration(milliseconds: 500),
       vsync: this,
     );
 
@@ -263,7 +319,6 @@ class _HomeContentState extends State<HomeContent>
   Widget build(BuildContext context) {
     final user = _authService.currentUser;
     final isDoctor = user?.isDoctor ?? false;
-    final isAdmin  = user?.isAdmin  ?? false;
     
     return Center(
       child: ConstrainedBox(
@@ -273,28 +328,9 @@ class _HomeContentState extends State<HomeContent>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildAnimatedWidget(0, _buildWelcomeCard(context, isDoctor, isAdmin)),
+              _buildAnimatedWidget(0, _buildWelcomeCard(context, isDoctor)),
               SizedBox(height: 24),
-              if (isAdmin) ...[
-                // Contenido para administradores
-                _buildAnimatedWidget(1, _buildSectionTitle(context, 'Resumen del Sistema')),
-                SizedBox(height: 16),
-                _buildAnimatedWidget(2, _buildRecommendationCard(
-                  context,
-                  'Administra los médicos registrados en el sistema',
-                  Icons.manage_accounts_outlined,
-                )),
-                _buildAnimatedWidget(3, _buildRecommendationCard(
-                  context,
-                  'Revisa y valida las cuentas pendientes de aprobación',
-                  Icons.fact_check_outlined,
-                )),
-                _buildAnimatedWidget(4, _buildRecommendationCard(
-                  context,
-                  'Monitorea la actividad del sistema',
-                  Icons.bar_chart_outlined,
-                )),
-              ] else if (isDoctor) ...[
+              if (isDoctor) ...[
                 // Contenido para médicos
                 _buildAnimatedWidget(1, _buildSectionTitle(context, 'Pacientes Recientes')),
                 SizedBox(height: 16),
@@ -352,7 +388,7 @@ class _HomeContentState extends State<HomeContent>
     );
   }
 
-  Widget _buildWelcomeCard(BuildContext context, bool isDoctor, bool isAdmin) {
+  Widget _buildWelcomeCard(BuildContext context, bool isDoctor) {
     return Container(
       padding: EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -385,11 +421,7 @@ class _HomeContentState extends State<HomeContent>
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
-                  isAdmin
-                      ? Icons.admin_panel_settings
-                      : isDoctor
-                          ? Icons.medical_services
-                          : Icons.visibility,
+                  isDoctor ? Icons.medical_services : Icons.visibility,
                   color: Theme.of(context).colorScheme.onPrimary,
                   size: 28,
                 ),
@@ -400,11 +432,7 @@ class _HomeContentState extends State<HomeContent>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      isAdmin
-                          ? '¡Bienvenido, Administrador!'
-                          : isDoctor
-                              ? '¡Bienvenido, Doctor!'
-                              : '¡Bienvenido!',
+                      isDoctor ? '¡Bienvenido, Doctor!' : '¡Bienvenido!',
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.onPrimary,
                         fontSize: 24,
@@ -413,11 +441,7 @@ class _HomeContentState extends State<HomeContent>
                     ),
                     SizedBox(height: 4),
                     Text(
-                      isAdmin
-                          ? 'Panel de administración del sistema'
-                          : isDoctor
-                              ? 'Panel de gestión de pacientes'
-                              : 'Tu salud visual es nuestra prioridad',
+                      isDoctor ? 'Panel de gestión de pacientes' : 'Tu salud visual es nuestra prioridad',
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.9),
                         fontSize: 14,

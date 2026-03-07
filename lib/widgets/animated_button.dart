@@ -7,6 +7,7 @@ class AnimatedButton extends StatefulWidget {
   final VoidCallback? onPressed;
   final Color? backgroundColor;
   final Color? textColor;
+  final Color? borderColor;
   final IconData? icon;
   final double height;
   final double borderRadius;
@@ -18,6 +19,7 @@ class AnimatedButton extends StatefulWidget {
     this.onPressed,
     this.backgroundColor,
     this.textColor,
+    this.borderColor,
     this.icon,
     this.height = 50,
     this.borderRadius = 12,
@@ -72,6 +74,7 @@ class _AnimatedButtonState extends State<AnimatedButton>
     final theme = Theme.of(context);
     final bgColor = widget.backgroundColor ?? theme.colorScheme.secondary;
     final txtColor = widget.textColor ?? Colors.white;
+    final bdrColor = widget.borderColor;
 
     return GestureDetector(
       onTapDown: widget.onPressed != null ? _handleTapDown : null,
@@ -92,6 +95,7 @@ class _AnimatedButtonState extends State<AnimatedButton>
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(widget.borderRadius),
+            border: bdrColor != null ? Border.all(color: bdrColor, width: 1.5) : null,
             boxShadow: [
               BoxShadow(
                 color: bgColor.withOpacity(0.3),

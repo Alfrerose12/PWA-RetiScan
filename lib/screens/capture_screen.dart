@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../widgets/animated_button.dart';
 import '../widgets/responsive_wrapper.dart';
+import '../services/pdf_service.dart';
+import '../services/notification_service.dart';
 
 class CaptureScreen extends StatefulWidget {
   @override
@@ -26,15 +28,15 @@ class _CaptureScreenState extends State<CaptureScreen>
   void initState() {
     super.initState();
     _pulseController = AnimationController(
-      duration: Duration(milliseconds: 1500),
+      duration: Duration(milliseconds: 800),
       vsync: this,
     );
     _progressController = AnimationController(
-      duration: Duration(seconds: 3),
+      duration: Duration(seconds: 1),
       vsync: this,
     );
     _revealController = AnimationController(
-      duration: Duration(milliseconds: 800),
+      duration: Duration(milliseconds: 400),
       vsync: this,
     );
 
@@ -74,7 +76,7 @@ class _CaptureScreenState extends State<CaptureScreen>
   }
 
   Future<void> _simulateAnalysis() async {
-    await Future.delayed(Duration(seconds: 3));
+    await Future.delayed(Duration(seconds: 1));
 
     setState(() {
       _isUploading = false;
@@ -89,6 +91,13 @@ class _CaptureScreenState extends State<CaptureScreen>
     });
 
     _revealController.forward(from: 0);
+
+    // Notificar al usuario (Top 16)
+    NotificationService.showNotification(
+      id: 0,
+      title: 'Análisis Completado',
+      body: 'El análisis de su retina ha finalizado. Verifique los resultados.',
+    );
   }
 
   void _resetAnalysis() {
@@ -434,6 +443,28 @@ class _CaptureScreenState extends State<CaptureScreen>
                     ),
                   ),
                 ],
+              ),
+              SizedBox(height: 16),
+              // Botón de PDF (Top 10)
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    final resultsString = _analysisResults!.entries
+                        .map((e) => '${e.key}: ${e.value}')
+                        .join('\n');
+                    PdfService.generateAndShareReport(
+                      patientName: 'Paciente de prueba',
+                      analysisResult: resultsString,
+                      date: DateTime.now().toString().split(' ')[0],
+                    );
+                  },
+                  icon: Icon(Icons.picture_as_pdf),
+                  label: Text('Exportar Resumen a PDF'),
+                  style: ElevatedButton.styleFrom(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                  ),
+                ),
               ),
             ],
           ),
