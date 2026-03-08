@@ -201,36 +201,20 @@ class _RegisterScreenState extends State<RegisterScreen>
   }
 
   Future<void> _register() async {
-    if (_formKey.currentState!.validate()) {
-      if (_passwordController.text != _confirmPasswordController.text) {
-        _showError('Las contraseñas no coinciden');
-        return;
-      }
-
-      setState(() => _isLoading = true);
-
-      final result = await _authService.register(
-        fullName: _nameController.text.trim(),
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-      );
-
-      setState(() => _isLoading = false);
-
-      if (result['success'] == true) {
-        // Registro exitoso, regresar al login
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Cuenta creada exitosamente'),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      } else {
-        _showError(result['message'] ?? 'Error al registrar usuario');
-      }
-    }
+    // El registro de médicos se realiza a través de la Landing Page de RetiScan.
+    // Esta pantalla está deshabilitada en la PWA.
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'El registro de médicos se realiza en la Landing Page de RetiScan. '
+          'Contacta al administrador para obtener acceso.',
+        ),
+        backgroundColor: Colors.orange[700],
+        behavior: SnackBarBehavior.floating,
+        duration: Duration(seconds: 5),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
   }
 
   @override

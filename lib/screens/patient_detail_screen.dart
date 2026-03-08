@@ -182,10 +182,10 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
                     fontSize: 14,
                   ),
                 ),
-                if (_patient.lastVisit != null) ...[
+                if (_patient.createdAt != null) ...[
                   SizedBox(height: 4),
                   Text(
-                    'Última visita: ${_formatDate(_patient.lastVisit)}',
+                    'Registrado: ${_formatDate(_patient.createdAt)}',
                     style: TextStyle(
                       color: Colors.white.withOpacity(0.8),
                       fontSize: 13,
@@ -221,7 +221,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
               _infoChip('Edad', '${_patient.age} años', Icons.cake, constraints, isWide),
               _infoChip('Teléfono', _patient.phone ?? 'No registrado', Icons.phone, constraints, isWide),
               _infoChip('Total Análisis', '${_patient.totalAnalyses}', Icons.analytics, constraints, isWide),
-              _infoChip('Última Visita', _formatDate(_patient.lastVisit), Icons.calendar_today, constraints, isWide),
+              _infoChip('Registrado', _formatDate(_patient.createdAt), Icons.calendar_today, constraints, isWide),
             ],
           );
         },
@@ -303,7 +303,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
               Expanded(
                 child: _statChip(
                   label: 'Última visita',
-                  value: _formatDate(_patient.lastVisit),
+                  value: _formatDate(_patient.createdAt),
                   icon: Icons.calendar_today_outlined,
                   color: Colors.purple,
                 ),

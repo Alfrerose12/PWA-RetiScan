@@ -85,19 +85,20 @@ class _TwoFactorScreenState extends State<TwoFactorScreen>
       }
     });
 
-    final code = await _authService.request2FA();
+    final result = await _authService.sendOtp(widget.userEmail);
 
     if (!mounted) return;
 
-    if (code != null) {
+    if (result['success'] == true) {
+      final devOtp = result['devOtp']?.toString() ?? '';
       setState(() {
-        _serverCode = code;
+        _serverCode = devOtp;
         _isLoadingCode = false;
         _secondsLeft = 30;
         _codeExpired = false;
       });
       Future.delayed(Duration(milliseconds: 300), () {
-        if (mounted) setState(() => _showCode = true);
+        if (mounted) setState(() => _showCode = devOtp.isNotEmpty);
       });
       _startCountdown();
     } else {
@@ -141,7 +142,8 @@ class _TwoFactorScreenState extends State<TwoFactorScreen>
 
     setState(() => _isVerifying = true);
 
-    final ok = await _authService.verify2FA(entered);
+    final result = await _authService.verifyOtp(entered);
+    final ok = result['success'] == true;
 
     if (!mounted) return;
 

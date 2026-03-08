@@ -14,30 +14,36 @@ class AuthService {
 
   User? get currentUser => _currentUser;
   bool get isAuthenticated => _currentUser != null;
-  bool get isDoctor => _currentUser?.isDoctor ?? false;
-  bool get isClient => _currentUser?.isClient ?? true;
+  bool get isDoctor  => _currentUser?.isDoctor  ?? false;
+  bool get isPatient => _currentUser?.isPatient ?? false;
+  bool get isAdmin   => _currentUser?.isAdmin   ?? false;
 
-  /// Token guardado en localStorage (persiste al recargar, se borra al cerrar sesión)
+  // Alias para compatibilidad con pantallas existentes
+  bool get isClient => isPatient;
+
   String? get _token => html.window.localStorage['auth_token'];
 
-  void _saveToken(String token) {
-    html.window.localStorage['auth_token'] = token;
-  }
+  void _saveToken(String token) =>
+      html.window.localStorage['auth_token'] = token;
 
-  /// Intenta restaurar sesión desde localStorage al arrancar la app
+  // ─────────────────────────────────────────────────────────────────
+  // Restaurar sesión desde localStorage al arrancar la app
+  // ─────────────────────────────────────────────────────────────────
   Future<bool> loadUserFromSession() async {
     final token = _token;
     if (token == null) return false;
-
     try {
-      final uri = Uri.parse('${ApiConfig.baseUrl}/users/profile');
-      final res = await http.get(uri, headers: ApiConfig.authHeaders(token));
+      final res = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}/users/profile'),
+        headers: ApiConfig.authHeaders(token),
+      );
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body) as Map<String, dynamic>;
-        _currentUser = User.fromJson(data).copyWith(token: token);
+        // La API devuelve { user: {...} } o directamente el objeto
+        final userData = (data['user'] ?? data) as Map<String, dynamic>;
+        _currentUser = User.fromJson(userData).copyWith(token: token);
         return true;
       } else {
-        // Token expirado o inválido — limpiar
         html.window.localStorage.remove('auth_token');
         return false;
       }
@@ -46,275 +52,133 @@ class AuthService {
     }
   }
 
-  /// Login → POST /users/login
-  Future<Map<String, dynamic>> login(String email, String password) async {
+  // ─────────────────────────────────────────────────────────────────
+  // Login → POST /auth/login
+  // identifier puede ser email (médico) o username (paciente)
+  // ─────────────────────────────────────────────────────────────────
+  Future<Map<String, dynamic>> login(String identifier, String password) async {
     try {
-      final uri = Uri.parse('${ApiConfig.baseUrl}/users/login');
       final res = await http.post(
-        uri,
+        Uri.parse('${ApiConfig.baseUrl}/auth/login'),
         headers: ApiConfig.jsonHeaders,
-        body: jsonEncode({'email': email, 'password': password}),
+        body: jsonEncode({'identifier': identifier, 'password': password}),
       );
 
       final body = jsonDecode(res.body) as Map<String, dynamic>;
 
       if (res.statusCode == 200) {
-        final token = body['token'] as String;
+        final token    = body['token'] as String;
         final userData = body['user'] as Map<String, dynamic>;
-        _currentUser = User.fromJson(userData).copyWith(token: token);
+        _currentUser   = User.fromJson(userData).copyWith(token: token);
         _saveToken(token);
 
-        // mustChangePassword puede venir en la raíz o dentro de 'user'
-        final mustChange = body['mustChangePassword'] == true ||
-            userData['mustChangePassword'] == true;
+        return {
+          'success':            true,
+          'mustChangePassword': _currentUser!.mustChangePassword,
+          'isVerified':         _currentUser!.isVerified,
+          'role':               _currentUser!.role,
+        };
+      } else {
+        // 403 = cuenta no verificada
+        final msg = (body['error'] ?? body['message'] ?? 'Credenciales inválidas').toString();
+        return {'success': false, 'message': msg, 'statusCode': res.statusCode};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Error de conexión con el servidor'};
+    }
+  }
 
-        // Debug (visible en flutter run)
-        print('[AuthService.login] mustChangePassword=$mustChange | body keys=${body.keys.toList()}');
+  // ─────────────────────────────────────────────────────────────────
+  // Cambiar contraseña → POST /users/change-password
+  // ─────────────────────────────────────────────────────────────────
+  Future<Map<String, dynamic>> changePassword(String newPassword) async {
+    final token = _token;
+    if (token == null) return {'success': false, 'message': 'No autenticado'};
+    try {
+      final res = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/users/change-password'),
+        headers: ApiConfig.authHeaders(token),
+        body: jsonEncode({'newPassword': newPassword}),
+      );
+      if (res.statusCode == 200) {
+        // Actualizar flag en memoria
+        _currentUser = _currentUser?.copyWith(mustChangePassword: false);
+        return {'success': true};
+      } else {
+        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        return {'success': false, 'message': data['error'] ?? 'Error al cambiar contraseña'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Error de conexión con el servidor'};
+    }
+  }
 
+  // ─────────────────────────────────────────────────────────────────
+  // Enviar OTP → POST /auth/send-otp
+  // type: 'OTP_EMAIL' | 'OTP_SMS'
+  // ─────────────────────────────────────────────────────────────────
+  Future<Map<String, dynamic>> sendOtp(String email, {String type = 'OTP_EMAIL'}) async {
+    final token = _token;
+    if (token == null) return {'success': false, 'message': 'No autenticado'};
+    try {
+      final res = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/auth/send-otp'),
+        headers: ApiConfig.authHeaders(token),
+        body: jsonEncode({'email': email, 'type': type}),
+      );
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      if (res.statusCode == 200 || res.statusCode == 201) {
         return {
           'success': true,
-          'mustChangePassword': mustChange,
-        };
-      } else {
-        return {
-          'success': false,
-          'message': body['message'] ?? 'Credenciales inválidas',
+          // En desarrollo la API devuelve el OTP directamente
+          'devOtp': body['_dev_otp']?.toString(),
         };
       }
+      return {'success': false, 'message': body['error'] ?? 'Error al enviar OTP'};
     } catch (e) {
       return {'success': false, 'message': 'Error de conexión con el servidor'};
     }
   }
 
-  /// Solicitar código 2FA → POST /auth/2fa/send
-  /// Retorna el código generado (visible en desarrollo) o null si falla.
-  Future<String?> request2FA() async {
-    final token = _token;
-    if (token == null) return null;
-    try {
-      final uri = Uri.parse('${ApiConfig.baseUrl}/auth/2fa/send');
-      final res = await http.post(
-        uri,
-        headers: {'Authorization': 'Bearer $token'},
-      );
-      if (res.statusCode == 200 || res.statusCode == 201) {
-        final body = jsonDecode(res.body) as Map<String, dynamic>;
-        return body['code']?.toString();
-      }
-      return null;
-    } catch (_) {
-      return null;
-    }
-  }
-
-  /// Solicitar código 2FA sin autenticar (para registro) → POST /auth/2fa/send-unauth
-  Future<String?> request2FAUnauth(String email) async {
-    try {
-      final uri = Uri.parse('${ApiConfig.baseUrl}/auth/2fa/send-unauth');
-      final res = await http.post(
-        uri,
-        headers: ApiConfig.jsonHeaders,
-        body: jsonEncode({'email': email}),
-      );
-      if (res.statusCode == 200 || res.statusCode == 201) {
-        final body = jsonDecode(res.body) as Map<String, dynamic>;
-        return body['code']?.toString();
-      }
-      return null;
-    } catch (_) {
-      return null;
-    }
-  }
-
-  /// Verificar código 2FA sin autenticar (para registro) → POST /auth/2fa/verify-unauth
-  Future<bool> verify2FAUnauth(String email, String code) async {
-    try {
-      final uri = Uri.parse('${ApiConfig.baseUrl}/auth/2fa/verify-unauth');
-      final res = await http.post(
-        uri,
-        headers: ApiConfig.jsonHeaders,
-        body: jsonEncode({'email': email, 'code': code}),
-      );
-      return res.statusCode == 200;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  /// Verificar código 2FA → POST /auth/2fa/verify
-  Future<bool> verify2FA(String code) async {
-    final token = _token;
-    if (token == null) return false;
-    try {
-      final uri = Uri.parse('${ApiConfig.baseUrl}/auth/2fa/verify');
-      final res = await http.post(
-        uri,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({'code': code}),
-      );
-      return res.statusCode == 200;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  /// Register → POST /users/register
-  Future<Map<String, dynamic>> register({
-    required String email,
-    required String password,
-    String? fullName,
-  }) async {
-    try {
-      final uri = Uri.parse('${ApiConfig.baseUrl}/users/register');
-      final res = await http.post(
-        uri,
-        headers: ApiConfig.jsonHeaders,
-        body: jsonEncode({
-          'email': email,
-          'password': password,
-          if (fullName != null && fullName.isNotEmpty) 'name': fullName,
-        }),
-      );
-
-      final body = jsonDecode(res.body) as Map<String, dynamic>;
-
-      if (res.statusCode == 201 || res.statusCode == 200) {
-        // Guardar token si la API lo devuelve tras el registro
-        // (necesario para que request2FA pueda autenticarse)
-        final token = body['token'] as String?;
-        if (token != null) {
-          _saveToken(token);
-          final userData = body['user'] as Map<String, dynamic>?;
-          if (userData != null) {
-            _currentUser = User.fromJson(userData).copyWith(token: token);
-          }
-        }
-        return {'success': true};
-      } else {
-        return {
-          'success': false,
-          'message': body['message'] ?? 'Error al registrar usuario',
-        };
-      }
-    } catch (e) {
-      return {'success': false, 'message': 'Error de conexión con el servidor'};
-    }
-  }
-
-  /// POST /users/create-patient — create patient (only for Doctors/Admins)
-  Future<Map<String, dynamic>> createPatientAccount({
-    required String email,
-    required String password,
-    String? fullName,
-  }) async {
+  // ─────────────────────────────────────────────────────────────────
+  // Verificar OTP → POST /auth/verify-otp
+  // ─────────────────────────────────────────────────────────────────
+  Future<Map<String, dynamic>> verifyOtp(String otp, {String type = 'OTP_EMAIL'}) async {
     final token = _token;
     if (token == null) return {'success': false, 'message': 'No autenticado'};
-    
     try {
-      final uri = Uri.parse('${ApiConfig.baseUrl}/users/create-patient');
       final res = await http.post(
-        uri,
+        Uri.parse('${ApiConfig.baseUrl}/auth/verify-otp'),
         headers: ApiConfig.authHeaders(token),
-        body: jsonEncode({
-          'email': email,
-          'password': password,
-          if (fullName != null && fullName.isNotEmpty) 'name': fullName,
-        }),
+        body: jsonEncode({'otp': otp, 'type': type}),
       );
-
       final body = jsonDecode(res.body) as Map<String, dynamic>;
-
-      if (res.statusCode == 201 || res.statusCode == 200) {
-        return {'success': true};
-      } else {
-        return {
-          'success': false,
-          'message': body['error'] ?? body['message'] ?? 'Error al crear paciente',
-        };
-      }
-    } catch (e) {
-      return {'success': false, 'message': 'Error de conexión con el servidor'};
-    }
-  }
-
-  /// Actualizar perfil → PUT /users/profile
-  Future<Map<String, dynamic>> updateProfile({
-    String? email,
-    String? password,
-  }) async {
-    final token = _token;
-    if (token == null) return {'success': false, 'message': 'No autenticado'};
-
-    final body = <String, dynamic>{};
-    if (email != null) body['email'] = email;
-    if (password != null) body['password'] = password;
-
-    try {
-      final uri = Uri.parse('${ApiConfig.baseUrl}/users/profile');
-      final res = await http.put(
-        uri,
-        headers: ApiConfig.authHeaders(token),
-        body: jsonEncode(body),
-      );
-
       if (res.statusCode == 200) {
-        final data = jsonDecode(res.body) as Map<String, dynamic>;
-        _currentUser = User.fromJson(data).copyWith(token: token);
+        _currentUser = _currentUser?.copyWith(isVerified: true);
         return {'success': true};
-      } else {
-        final data = jsonDecode(res.body) as Map<String, dynamic>;
-        return {'success': false, 'message': data['message'] ?? 'Error al actualizar'};
       }
+      return {'success': false, 'message': body['error'] ?? 'Código OTP inválido o expirado'};
     } catch (e) {
       return {'success': false, 'message': 'Error de conexión con el servidor'};
     }
   }
 
-  /// Cerrar sesión — limpia localStorage y memoria
+  // ─────────────────────────────────────────────────────────────────
+  // Cerrar sesión
+  // ─────────────────────────────────────────────────────────────────
   Future<void> logout() async {
     html.window.localStorage.remove('auth_token');
     _currentUser = null;
   }
 
-  /// Cambiar contraseña (primer login médico) → PUT /users/change-password
-  Future<Map<String, dynamic>> changePassword(String newPassword) async {
-    final token = _token;
-    if (token == null) return {'success': false, 'message': 'No autenticado'};
-    try {
-      final uri = Uri.parse('${ApiConfig.baseUrl}/users/change-password');
-      final res = await http.put(
-        uri,
-        headers: ApiConfig.authHeaders(token),
-        body: jsonEncode({'newPassword': newPassword}),
-      );
-      if (res.statusCode == 200) {
-        return {'success': true};
-      } else {
-        final data = jsonDecode(res.body) as Map<String, dynamic>;
-        return {'success': false, 'message': data['message'] ?? 'Error al cambiar contraseña'};
-      }
-    } catch (e) {
-      return {'success': false, 'message': 'Error de conexión con el servidor'};
-    }
-  }
-
-  /// Limpiar toda la sesión (usado desde modo desarrollador)
   Future<void> clearStorage() async {
     html.window.localStorage.clear();
     _currentUser = null;
   }
 
-  /// Cambiar rol en memoria — solo modo desarrollador
-  Future<void> switchRole(String newRole) async {
-    if (_currentUser != null) {
-      _currentUser = _currentUser!.copyWith(role: newRole);
-    }
-  }
+  /// Expone el token para que otros servicios puedan usarlo
+  String? get token => _token;
 
-  /// ¿El usuario puede ver opciones de desarrollador?
   bool get isDeveloper =>
-      _currentUser?.email.endsWith('@yada.com') ?? false;
+      _currentUser?.email?.endsWith('@yada.com') ?? false;
 }

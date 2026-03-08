@@ -16,7 +16,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen>
     with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
+  final _identifierController = TextEditingController();
   final _passwordController = TextEditingController();
   final AuthService _authService = AuthService();
   bool _obscurePassword = true;
@@ -76,7 +76,7 @@ class _LoginScreenState extends State<LoginScreen>
     _fadeController.dispose();
     _logoController.dispose();
     _particleController.dispose();
-    _emailController.dispose();
+    _identifierController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -86,7 +86,7 @@ class _LoginScreenState extends State<LoginScreen>
       setState(() => _isLoading = true);
 
       final result = await _authService.login(
-        _emailController.text.trim(),
+        _identifierController.text.trim(),
         _passwordController.text,
       );
 
@@ -334,12 +334,14 @@ class _LoginScreenState extends State<LoginScreen>
         );
       },
       child: TextFormField(
-        controller: _emailController,
+        controller: _identifierController,
         style: TextStyle(color: Colors.white),
         decoration: InputDecoration(
-          labelText: 'Correo electrónico',
+          labelText: 'Correo o usuario',
+          hintText: 'doctor@email.com / juan.perez#1234',
+          hintStyle: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 13),
           labelStyle: TextStyle(color: Colors.white.withOpacity(0.8)),
-          prefixIcon: Icon(Icons.email_outlined, color: Colors.white.withOpacity(0.8)),
+          prefixIcon: Icon(Icons.person_outline, color: Colors.white.withOpacity(0.8)),
           filled: true,
           fillColor: Colors.white.withOpacity(0.1),
           border: OutlineInputBorder(
@@ -359,13 +361,11 @@ class _LoginScreenState extends State<LoginScreen>
             borderSide: BorderSide(color: Colors.red.shade300),
           ),
         ),
-        keyboardType: TextInputType.emailAddress,
+        keyboardType: TextInputType.text,
+        autocorrect: false,
         validator: (value) {
           if (value == null || value.isEmpty) {
-            return 'Por favor ingresa tu correo';
-          }
-          if (!value.contains('@')) {
-            return 'Ingresa un correo válido';
+            return 'Por favor ingresa tu correo o usuario';
           }
           return null;
         },

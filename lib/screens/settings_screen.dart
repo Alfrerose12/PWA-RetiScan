@@ -303,72 +303,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
                 SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: _authService.isClient
-                            ? null
-                            : () async {
-                                await _authService.switchRole('client');
-                                setState(() {});
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Cambiado a Usuario'),
-                                    backgroundColor: Colors.green,
-                                    behavior: SnackBarBehavior.floating,
-                                  ),
-                                );
-                              },
-                        icon: Icon(Icons.person),
-                        label: Text('Usuario'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _authService.isClient
-                              ? Theme.of(context).colorScheme.primary
-                              : (Theme.of(context).brightness == Brightness.dark 
-                                  ? Theme.of(context).colorScheme.surface 
-                                  : Colors.grey[300]),
-                          foregroundColor: _authService.isClient
-                              ? Theme.of(context).colorScheme.onPrimary
-                              : Theme.of(context).textTheme.bodyMedium?.color,
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: _authService.isDoctor
-                            ? null
-                            : () async {
-                                await _authService.switchRole('doctor');
-                                setState(() {});
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Cambiado a Doctor'),
-                                    backgroundColor: Colors.green,
-                                    behavior: SnackBarBehavior.floating,
-                                  ),
-                                );
-                              },
-                        icon: Icon(Icons.medical_services),
-                        label: Text('Doctor'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _authService.isDoctor
-                              ? Theme.of(context).colorScheme.primary
-                              : (Theme.of(context).brightness == Brightness.dark 
-                                  ? Theme.of(context).colorScheme.surface 
-                                  : Colors.grey[300]),
-                          foregroundColor: _authService.isDoctor
-                              ? Theme.of(context).colorScheme.onPrimary
-                              : Theme.of(context).textTheme.bodyMedium?.color,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 12),
                 Text(
-                  'Nota: Reinicia la app para ver los cambios en la navegación',
+                  'Nota: El cambio de rol sólo es posible con cuentas reales en la API.',
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.orange[700],
