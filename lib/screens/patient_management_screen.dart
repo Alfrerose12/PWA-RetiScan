@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:math' as math;
-import '../services/auth_service.dart';
+import '../services/patient_service.dart';
 import '../services/theme_service.dart';
 import '../config/input_sanitizer.dart';
 import '../widgets/responsive_wrapper.dart';
@@ -13,7 +13,7 @@ class PatientManagementScreen extends StatefulWidget {
 }
 
 class _PatientManagementScreenState extends State<PatientManagementScreen> {
-  final AuthService _authService = AuthService();
+  final PatientService _patientService = PatientService();
   bool _isLoading = false;
 
   final _formKey = GlobalKey<FormState>();
@@ -40,33 +40,34 @@ class _PatientManagementScreenState extends State<PatientManagementScreen> {
     });
 
     final name = _nameController.text.trim();
-    final email = _emailController.text.trim();
-    final generatedPassword = _generateRandomPassword();
+    final parts = name.split(' ');
+    final firstName = parts.isNotEmpty ? parts[0] : '';
+    final paternalSurname = parts.length > 1 ? parts[1] : '';
+    final maternalSurname = parts.length > 2 ? parts.sublist(2).join(' ') : '';
 
-    final result = await _authService.createPatientAccount(
-      email: email,
-      password: generatedPassword,
-      fullName: name,
-    );
+    try {
+      final result = await _patientService.createPatient(
+        firstName: firstName,
+        paternalSurname: paternalSurname,
+        maternalSurname: maternalSurname,
+      );
 
-    setState(() {
-      _isLoading = false;
-    });
-
-    if (result['success'] == true) {
       setState(() {
-        _tempPassword = generatedPassword;
-        _tempUsername = email; // El usuario accederá con su email
+        _isLoading = false;
+        _tempUsername = result['username'];
+        _tempPassword = result['tempPassword'];
       });
+
       _nameController.clear();
       _emailController.clear();
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Paciente creado con éxito.'),
         backgroundColor: Colors.green,
       ));
-    } else {
+    } catch (e) {
+      setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(result['message'] ?? 'Error al crear paciente'),
+        content: Text(e.toString().replaceAll('Exception: ', '')),
         backgroundColor: Colors.red,
       ));
     }
