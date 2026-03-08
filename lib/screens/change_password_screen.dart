@@ -4,6 +4,7 @@ import 'login_loading_screen.dart';
 import '../widgets/glassmorphic_card.dart';
 import '../widgets/animated_button.dart';
 import '../services/auth_service.dart';
+import 'complete_profile_screen.dart';
 
 /// Pantalla que se muestra cuando mustChangePassword == true.
 /// El médico define su contraseña definitiva y luego entra al home.
@@ -80,12 +81,13 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen>
     setState(() => _isLoading = false);
 
     if (result['success'] == true) {
-      // Contraseña cambiada → ir al home normalmente
+      final isPatient = _authService.currentUser?.isPatient ?? false;
+      // Contraseña cambiada → ir a completar perfil si es paciente, si no, al home (loading screen)
       Navigator.pushReplacement(
         context,
         PageRouteBuilder(
           pageBuilder: (context, animation, secondaryAnimation) =>
-              LoginLoadingScreen(),
+              isPatient ? CompleteProfileScreen() : LoginLoadingScreen(),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return FadeTransition(opacity: animation, child: child);
           },
