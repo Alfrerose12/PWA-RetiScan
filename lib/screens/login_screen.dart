@@ -321,119 +321,94 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Widget _buildEmailField() {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0.0, end: 1.0),
-      duration: Duration(milliseconds: 600),
-      builder: (context, value, child) {
-        return Transform.translate(
-          offset: Offset(0, 20 * (1 - value)),
-          child: Opacity(
-            opacity: value,
-            child: child,
-          ),
-        );
-      },
-      child: TextFormField(
-        controller: _identifierController,
-        style: TextStyle(color: Colors.white),
-        decoration: InputDecoration(
-          labelText: 'Correo o usuario',
-          hintText: 'doctor@email.com / juan.perez#1234',
-          hintStyle: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 13),
-          labelStyle: TextStyle(color: Colors.white.withOpacity(0.8)),
-          prefixIcon: Icon(Icons.person_outline, color: Colors.white.withOpacity(0.8)),
-          filled: true,
-          fillColor: Colors.white.withOpacity(0.1),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide(color: Colors.white.withOpacity(0.3), width: 1.5),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide(color: Colors.white, width: 2),
-          ),
-          errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide(color: Colors.red.shade300),
-          ),
+    return TextFormField(
+      controller: _identifierController,
+      style: TextStyle(color: Colors.white),
+      decoration: InputDecoration(
+        labelText: 'Correo o usuario',
+        hintText: 'doctor@email.com / juan.perez#1234',
+        hintStyle: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 13),
+        labelStyle: TextStyle(color: Colors.white.withOpacity(0.8)),
+        prefixIcon: Icon(Icons.person_outline, color: Colors.white.withOpacity(0.8)),
+        filled: true,
+        fillColor: Colors.white.withOpacity(0.1),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
         ),
-        keyboardType: TextInputType.text,
-        autocorrect: false,
-        validator: (value) {
-          if (value == null || value.isEmpty) {
-            return 'Por favor ingresa tu correo o usuario';
-          }
-          return null;
-        },
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: Colors.white.withOpacity(0.3), width: 1.5),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: Colors.white, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: Colors.red.shade300),
+        ),
       ),
+      keyboardType: TextInputType.text,
+      autocorrect: false,
+      validator: (value) {
+        if (value == null || value.isEmpty) {
+          return 'Por favor ingresa tu correo o usuario';
+        }
+        return null;
+      },
     );
   }
 
   Widget _buildPasswordField() {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0.0, end: 1.0),
-      duration: Duration(milliseconds: 700),
-      builder: (context, value, child) {
-        return Transform.translate(
-          offset: Offset(0, 20 * (1 - value)),
-          child: Opacity(
-            opacity: value,
-            child: child,
+    return TextFormField(
+      controller: _passwordController,
+      obscureText: _obscurePassword,
+      style: TextStyle(color: Colors.white),
+      decoration: InputDecoration(
+        labelText: 'Contraseña',
+        labelStyle: TextStyle(color: Colors.white.withOpacity(0.8)),
+        prefixIcon: Icon(Icons.lock_outline, color: Colors.white.withOpacity(0.8)),
+        suffixIcon: IconButton(
+          icon: Icon(
+            _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+            color: Colors.white.withOpacity(0.8),
           ),
-        );
-      },
-      child: TextFormField(
-        controller: _passwordController,
-        obscureText: _obscurePassword,
-        style: TextStyle(color: Colors.white),
-        decoration: InputDecoration(
-          labelText: 'Contraseña',
-          labelStyle: TextStyle(color: Colors.white.withOpacity(0.8)),
-          prefixIcon: Icon(Icons.lock_outline, color: Colors.white.withOpacity(0.8)),
-          suffixIcon: IconButton(
-            icon: Icon(
-              _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-              color: Colors.white.withOpacity(0.8),
-            ),
-            onPressed: () {
-              setState(() {
-                _obscurePassword = !_obscurePassword;
-              });
-            },
-          ),
-          filled: true,
-          fillColor: Colors.white.withOpacity(0.1),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide(color: Colors.white.withOpacity(0.3), width: 1.5),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide(color: Colors.white, width: 2),
-          ),
-          errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide(color: Colors.red.shade300),
-          ),
+          onPressed: () {
+            // Forzamos la actualización directa para evitar bugs del cursor en Web
+            setState(() {
+              _obscurePassword = !_obscurePassword;
+            });
+          },
         ),
-        validator: (value) {
-          if (value == null || value.isEmpty) {
-            return 'Por favor ingresa tu contraseña';
-          }
-          if (value.length < 6) {
-            return 'La contraseña debe tener al menos 6 caracteres';
-          }
-          return null;
-        },
+        filled: true,
+        fillColor: Colors.white.withOpacity(0.1),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: Colors.white.withOpacity(0.3), width: 1.5),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: Colors.white, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: Colors.red.shade300),
+        ),
       ),
+      validator: (value) {
+        if (value == null || value.isEmpty) {
+          return 'Por favor ingresa tu contraseña';
+        }
+        if (value.length < 6) {
+          return 'La contraseña debe tener al menos 6 caracteres';
+        }
+        return null;
+      },
     );
   }
 

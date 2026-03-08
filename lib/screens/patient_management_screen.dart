@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:math' as math;
 import '../services/patient_service.dart';
+import '../models/patient.dart';
 import '../services/theme_service.dart';
 import '../config/input_sanitizer.dart';
 import '../widgets/responsive_wrapper.dart';
@@ -18,15 +19,39 @@ class _PatientManagementScreenState extends State<PatientManagementScreen> {
 
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
-  final _emailController = TextEditingController();
 
   String? _tempUsername;
   String? _tempPassword;
+  
+  List<Patient> _patients = [];
+  bool _isLoadingPatients = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPatients();
+  }
+
+  Future<void> _loadPatients() async {
+    setState(() => _isLoadingPatients = true);
+    try {
+      final list = await _patientService.getPatients();
+      setState(() {
+        _patients = list;
+        _isLoadingPatients = false;
+      });
+    } catch (e) {
+      setState(() => _isLoadingPatients = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Error al cargar pacientes: $e'),
+        backgroundColor: Colors.red,
+      ));
+    }
+  }
 
   @override
   void dispose() {
     _nameController.dispose();
-    _emailController.dispose();
     super.dispose();
   }
 
@@ -59,11 +84,13 @@ class _PatientManagementScreenState extends State<PatientManagementScreen> {
       });
 
       _nameController.clear();
-      _emailController.clear();
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Paciente creado con éxito.'),
         backgroundColor: Colors.green,
       ));
+      
+      // Recargar lista
+      _loadPatients();
     } catch (e) {
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -144,27 +171,46 @@ class _PatientManagementScreenState extends State<PatientManagementScreen> {
             },
           ),
           SizedBox(height: 16),
-          _buildMockPatientList(),
+          _buildPatientList(),
         ],
       ),
     );
   }
 
-  Widget _buildMockPatientList() {
-    // Ejemplo de UI de listado (simulado)
-    final pacientes = ['Juan Pérez', 'María García', 'Carlos López', 'Ana Martínez'];
+  Widget _buildPatientList() {
+    if (_isLoadingPatients) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+    
+    if (_patients.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Text('Aún no tienes pacientes registrados.', style: TextStyle(color: Colors.grey)),
+        ),
+      );
+    }
+
     return ListView.builder(
       shrinkWrap: true,
       physics: NeverScrollableScrollPhysics(),
-      itemCount: pacientes.length,
+      itemCount: _patients.length,
       itemBuilder: (context, index) {
+        final patient = _patients[index];
+        final emailStatus = patient.email != null ? patient.email! : 'Sin correo registrado';
+        
         return Card(
           margin: EdgeInsets.only(bottom: 8),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           child: ListTile(
             leading: CircleAvatar(child: Icon(Icons.person)),
-            title: Text(pacientes[index]),
-            subtitle: Text('Paciente de seguimiento'),
+            title: Text(patient.fullName),
+            subtitle: Text(emailStatus),
             trailing: Icon(Icons.chevron_right),
             onTap: () {
               // Navegar a detalles...
@@ -213,24 +259,6 @@ class _PatientManagementScreenState extends State<PatientManagementScreen> {
                         final safe = InputSanitizer.validateSafeInput(val);
                         if (safe != null) return safe;
                         return val!.isEmpty ? 'Requerido' : null;
-                      },
-                    ),
-                    SizedBox(height: 16),
-                    TextFormField(
-                      controller: _emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      inputFormatters: [InputSanitizer.blockDangerousChars],
-                      decoration: InputDecoration(
-                        labelText: 'Correo Electrónico',
-                        prefixIcon: Icon(Icons.email),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      validator: (val) {
-                        final safe = InputSanitizer.validateSafeInput(val);
-                        if (safe != null) return safe;
-                        if (val == null || val.isEmpty) return 'Requerido';
-                        if (!val.contains('@')) return 'Correo no válido';
-                        return null;
                       },
                     ),
                     SizedBox(height: 24),

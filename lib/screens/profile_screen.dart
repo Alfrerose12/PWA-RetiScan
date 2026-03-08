@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../widgets/responsive_wrapper.dart';
 import '../services/auth_service.dart';
+import '../services/patient_service.dart';
+import '../models/patient.dart';
 
 class ProfileScreen extends StatefulWidget {
   @override
@@ -13,6 +15,9 @@ class _ProfileScreenState extends State<ProfileScreen>
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
+  
+  Patient? _patientData;
+  bool _isLoadingPatient = false;
 
   @override
   void initState() {
@@ -28,6 +33,26 @@ class _ProfileScreenState extends State<ProfileScreen>
       CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
     );
     _controller.forward();
+    
+    if (_authService.currentUser?.role == 'PACIENTE') {
+      _fetchPatientData();
+    }
+  }
+
+  Future<void> _fetchPatientData() async {
+    setState(() => _isLoadingPatient = true);
+    try {
+      final patient = await PatientService().getMyRecord();
+      if (mounted) {
+        setState(() => _patientData = patient);
+      }
+    } catch (e) {
+      debugPrint('Error obteniendo expediente: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingPatient = false);
+      }
+    }
   }
 
   @override
@@ -319,6 +344,20 @@ class _ProfileScreenState extends State<ProfileScreen>
             icon: Icons.badge_outlined,
             label: 'Nombre completo',
             value: user.fullName!,
+          ),
+        ],
+        if (user?.role == 'PACIENTE') ...[
+          Divider(height: 1),
+          _infoRow(
+            icon: Icons.phone_outlined,
+            label: 'Teléfono',
+            value: _isLoadingPatient ? 'Cargando...' : (_patientData?.phone ?? '—'),
+          ),
+          Divider(height: 1),
+          _infoRow(
+            icon: Icons.wc_outlined,
+            label: 'Género',
+            value: _isLoadingPatient ? 'Cargando...' : (_patientData?.gender ?? '—'),
           ),
         ],
       ],
