@@ -89,13 +89,13 @@ class AuthService {
   }
 
   // ─────────────────────────────────────────────────────────────────
-  // Cambiar contraseña → POST /users/change-password
+  // Cambiar contraseña → PUT /users/change-password
   // ─────────────────────────────────────────────────────────────────
   Future<Map<String, dynamic>> changePassword(String newPassword) async {
     final token = _token;
     if (token == null) return {'success': false, 'message': 'No autenticado'};
     try {
-      final res = await http.post(
+      final res = await http.put(
         Uri.parse('${ApiConfig.baseUrl}/users/change-password'),
         headers: ApiConfig.authHeaders(token),
         body: jsonEncode({'newPassword': newPassword}),
@@ -118,19 +118,20 @@ class AuthService {
   // type: 'OTP_EMAIL' | 'OTP_SMS'
   // ─────────────────────────────────────────────────────────────────
   Future<Map<String, dynamic>> sendOtp(String email, {String type = 'OTP_EMAIL'}) async {
+    // Si no hay token, el backend no exige auth para OTP de registro si el correo aún no está verificado (o el endpoint unauth debería existir)
+    // Usaremos el mismo endpoint asumiendo que el backend permita unauth si es registro. Si el backend exige token, esto fallará adecuadamente.
     final token = _token;
-    if (token == null) return {'success': false, 'message': 'No autenticado'};
+    final headers = token == null ? ApiConfig.jsonHeaders : ApiConfig.authHeaders(token);
     try {
       final res = await http.post(
         Uri.parse('${ApiConfig.baseUrl}/auth/send-otp'),
-        headers: ApiConfig.authHeaders(token),
+        headers: headers,
         body: jsonEncode({'email': email, 'type': type}),
       );
       final body = jsonDecode(res.body) as Map<String, dynamic>;
       if (res.statusCode == 200 || res.statusCode == 201) {
         return {
           'success': true,
-          // En desarrollo la API devuelve el OTP directamente
           'devOtp': body['_dev_otp']?.toString(),
         };
       }
@@ -138,6 +139,21 @@ class AuthService {
     } catch (e) {
       return {'success': false, 'message': 'Error de conexión con el servidor'};
     }
+  }
+
+  // Métodos de compatibilidad para el nuevo flujo visual de registro (PWA)
+  Future<String?> request2FAUnauth(String email) async {
+    // Simulamos el envío llamando a sendOtp (que intenta usar el endpoint de siempre)
+    final res = await sendOtp(email);
+    if (res['success'] == true) {
+      return res['devOtp']?.toString() ?? 'Enviado';
+    }
+    return null;
+  }
+
+  Future<bool> verify2FAUnauth(String email, String code) async {
+    final res = await verifyOtp(code);
+    return res['success'] == true;
   }
 
   // ─────────────────────────────────────────────────────────────────
