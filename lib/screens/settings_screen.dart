@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/auth_service.dart';
 import '../services/theme_service.dart';
+import '../services/patient_service.dart';
 import 'login_screen.dart';
 import 'logout_screen.dart';
 
@@ -16,11 +17,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _notificationsEnabled = true;
   bool _developerMode = false;
 
+  String? _realName;
+  bool _isLoadingName = false;
+
   @override
   void initState() {
     super.initState();
     // Solo carga el estado del modo dev si el usuario es @yada.com
     _loadDeveloperMode();
+    _fetchRealName();
+  }
+
+  Future<void> _fetchRealName() async {
+    final user = _authService.currentUser;
+    if (user == null) return;
+    
+    // Si ya tenemos el nombre en el User, usamos ese
+    if (user.name != null && user.name!.isNotEmpty) {
+      if (mounted) {
+        setState(() => _realName = user.name);
+      }
+      return;
+    }
+
+    // De lo contrario intentamos buscar en el perfil del paciente
+    if (user.isPatient) {
+      if (mounted) setState(() => _isLoadingName = true);
+      try {
+        final patientService = PatientService();
+        final patient = await patientService.getMyRecord();
+        if (mounted) {
+          setState(() {
+            _realName = patient.fullName;
+          });
+        }
+      } catch (e) {
+        debugPrint('Error fetch real name: $e');
+      } finally {
+        if (mounted) setState(() => _isLoadingName = false);
+      }
+    }
   }
 
   Future<void> _loadDeveloperMode() async {
@@ -41,58 +77,62 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDesktop = MediaQuery.of(context).size.width >= 800;
+
+    final bgColor = Theme.of(context).scaffoldBackgroundColor;
+    final cardColor = Theme.of(context).cardTheme.color ?? Theme.of(context).colorScheme.surface;
+    final primaryColor = Theme.of(context).colorScheme.primary;
+    final textPrimary = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black;
+    final textSecondary = Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7) ?? Colors.grey;
+
     return Scaffold(
+      backgroundColor: bgColor,
       body: Column(
         children: [
-          // Drawer Header
-          Container(
-            padding: EdgeInsets.fromLTRB(16, 48, 16, 16),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Theme.of(context).colorScheme.primary,
-                  Theme.of(context).colorScheme.secondary,
+          // Drawer Header - Solo mostrar en móvil (no en el drawer de Desktop donde ya hay header)
+          if (!isDesktop)
+            Container(
+              padding: EdgeInsets.fromLTRB(24, 48, 24, 24),
+              decoration: BoxDecoration(
+                color: cardColor,
+                border: Border(bottom: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1))),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.settings_outlined, color: primaryColor, size: 28),
+                  SizedBox(width: 16),
+                  Text(
+                    'Ajustes',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: textPrimary,
+                    ),
+                  ),
+                  Spacer(),
+                  IconButton(
+                    icon: Icon(Icons.close, color: textSecondary),
+                    onPressed: () => Navigator.pop(context),
+                  ),
                 ],
               ),
             ),
-            child: Row(
-              children: [
-                Icon(Icons.settings, color: Theme.of(context).colorScheme.onPrimary, size: 28),
-                SizedBox(width: 12),
-                Text(
-                  'Ajustes',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.onPrimary,
-                  ),
-                ),
-                Spacer(),
-                IconButton(
-                  icon: Icon(Icons.close, color: Theme.of(context).colorScheme.onPrimary),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ],
-            ),
-          ),
           // Settings Content
           Expanded(
             child: ListView(
               children: [
                 _buildUserInfoSection(),
-                Divider(height: 1),
+                Divider(height: 1, color: Colors.white.withOpacity(0.05)),
                 SizedBox(height: 8),
                 _buildSettingsSection(),
-                Divider(height: 1),
+                Divider(height: 1, color: Colors.white.withOpacity(0.05)),
                 SizedBox(height: 8),
                 if (_authService.isDeveloper) ...[
                   _buildDeveloperSection(),
-                  Divider(height: 1),
+                  Divider(height: 1, color: Colors.white.withOpacity(0.05)),
                   SizedBox(height: 8),
                 ],
-                _buildAccountSection(),
+                if (!isDesktop) _buildAccountSection(),
               ],
             ),
           ),
@@ -103,64 +143,76 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _buildUserInfoSection() {
     final user = _authService.currentUser;
+    final cardColor = Theme.of(context).cardTheme.color ?? Theme.of(context).colorScheme.surface;
+    final primaryColor = Theme.of(context).colorScheme.primary;
+    final textPrimary = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black;
+    final textSecondary = Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7) ?? Colors.grey;
+
     return Container(
-      padding: EdgeInsets.all(20),
+      padding: EdgeInsets.all(24),
+      margin: EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF2D385E),
-            Color(0xFF2563EB),
-          ],
-        ),
+        color: cardColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: primaryColor.withOpacity(0.2)),
       ),
-      child: Column(
+      child: Row(
         children: [
           CircleAvatar(
-            radius: 40,
-            backgroundColor: Theme.of(context).colorScheme.onPrimary.withOpacity(0.2),
+            radius: 36,
+            backgroundColor: primaryColor.withOpacity(0.2),
             child: Icon(
               user?.isDoctor ?? false
                       ? Icons.medical_services
                       : Icons.person,
-              size: 40,
-              color: Theme.of(context).colorScheme.onPrimary,
+              size: 32,
+              color: primaryColor,
             ),
           ),
-          SizedBox(height: 16),
-          Text(
-            user?.fullName ?? user?.email ?? 'Sin nombre',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: Theme.of(context).colorScheme.onPrimary,
-            ),
-          ),
-          SizedBox(height: 4),
-          Text(
-            user?.email ?? '',
-            style: TextStyle(
-              fontSize: 14,
-              color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.8),
-            ),
-          ),
-          SizedBox(height: 8),
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-                  user?.isDoctor ?? false
-                      ? 'Médico'
-                      : 'Paciente',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Theme.of(context).colorScheme.onPrimary,
-              ),
+          SizedBox(width: 20),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _isLoadingName 
+                    ? SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    : Text(
+                        _realName ?? user?.fullName ?? user?.email ?? 'Usuario de RetiScan',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: textPrimary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                SizedBox(height: 4),
+                Text(
+                  user?.email ?? '',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: textSecondary,
+                  ),
+                ),
+                SizedBox(height: 12),
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: primaryColor,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                        user?.isDoctor ?? false
+                            ? 'Médico'
+                            : 'Paciente',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.onPrimary,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -170,38 +222,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _buildSettingsSection() {
     final themeService = Provider.of<ThemeService>(context);
+    final primaryColor = Theme.of(context).colorScheme.primary;
+    final textPrimary = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black;
+    final textSecondary = Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7) ?? Colors.grey;
     
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
           child: Text(
-            'Configuración',
+            'GENERALES',
             style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.6),
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.2,
+              color: textSecondary,
             ),
           ),
         ),
         ListTile(
+          contentPadding: EdgeInsets.symmetric(horizontal: 24),
           leading: Icon(
             themeService.isDarkMode ? Icons.dark_mode : Icons.light_mode,
-            color: Theme.of(context).colorScheme.primary,
+            color: primaryColor,
           ),
-          title: Text('Modo Oscuro'),
+          title: Text('Modo Oscuro', style: TextStyle(fontWeight: FontWeight.w500, color: textPrimary)),
           trailing: Switch(
             value: themeService.isDarkMode,
             onChanged: (value) {
               themeService.toggleTheme();
             },
-            activeColor: Theme.of(context).colorScheme.primary,
+            activeColor: primaryColor,
           ),
         ),
         ListTile(
-          leading: Icon(Icons.notifications_outlined, color: Theme.of(context).colorScheme.primary),
-          title: Text('Notificaciones'),
+          contentPadding: EdgeInsets.symmetric(horizontal: 24),
+          leading: Icon(Icons.notifications_outlined, color: primaryColor),
+          title: Text('Notificaciones', style: TextStyle(fontWeight: FontWeight.w500, color: textPrimary)),
           trailing: Switch(
             value: _notificationsEnabled,
             onChanged: (value) {
@@ -209,26 +267,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _notificationsEnabled = value;
               });
             },
-            activeColor: Color(0xFF2563EB),
+            activeColor: primaryColor,
           ),
         ),
         ListTile(
-          leading: Icon(Icons.security_outlined, color: Theme.of(context).colorScheme.primary),
-          title: Text('Privacidad'),
-          trailing: Icon(Icons.arrow_forward_ios, size: 16, color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5)),
+          contentPadding: EdgeInsets.symmetric(horizontal: 24),
+          leading: Icon(Icons.security_outlined, color: primaryColor),
+          title: Text('Privacidad', style: TextStyle(fontWeight: FontWeight.w500, color: textPrimary)),
+          trailing: Icon(Icons.arrow_forward_ios, size: 16, color: textSecondary),
           onTap: () {},
         ),
         ListTile(
-          leading: Icon(Icons.help_outline, color: Theme.of(context).colorScheme.primary),
-          title: Text('Ayuda y Soporte'),
-          trailing: Icon(Icons.arrow_forward_ios, size: 16, color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5)),
-          onTap: () {},
-        ),
-        ListTile(
-          leading: Icon(Icons.info_outline, color: Theme.of(context).colorScheme.primary),
-          title: Text('Acerca de'),
-          subtitle: Text('Versión 1.0.0'),
-          trailing: Icon(Icons.arrow_forward_ios, size: 16, color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5)),
+          contentPadding: EdgeInsets.symmetric(horizontal: 24),
+          leading: Icon(Icons.help_outline, color: primaryColor),
+          title: Text('Ayuda y Soporte', style: TextStyle(fontWeight: FontWeight.w500, color: textPrimary)),
+          trailing: Icon(Icons.arrow_forward_ios, size: 16, color: textSecondary),
           onTap: () {},
         ),
       ],
@@ -240,32 +293,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
           child: Row(
             children: [
-              Icon(Icons.code, size: 16, color: Colors.orange),
+              Icon(Icons.code, size: 16, color: Colors.orangeAccent),
               SizedBox(width: 8),
               Text(
-                'Opciones de Desarrollador',
+                'OPCIONES DE DESARROLLADOR',
                 style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.orange[700],
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.2,
+                  color: Colors.orangeAccent,
                 ),
               ),
             ],
           ),
         ),
         ListTile(
-          leading: Icon(Icons.bug_report_outlined, color: Colors.orange),
-          title: Text('Modo Desarrollador'),
+          contentPadding: EdgeInsets.symmetric(horizontal: 24),
+          leading: Icon(Icons.bug_report_outlined, color: Colors.orangeAccent),
+          title: Text('Modo Desarrollador', style: TextStyle(fontWeight: FontWeight.w500, color: Colors.white)),
           trailing: Switch(
             value: _developerMode,
             onChanged: (value) {
               setState(() => _developerMode = value);
               _saveDeveloperMode(value);
             },
-            activeColor: Colors.orange,
+            activeColor: Colors.orangeAccent,
           ),
         ),
         if (_developerMode) ...[
@@ -273,22 +328,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
             margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             padding: EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.orange[50],
+              color: Colors.orangeAccent.withOpacity(0.08),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.orange[200]!),
+              border: Border.all(color: Colors.orangeAccent.withOpacity(0.2)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Icon(Icons.swap_horiz, color: Colors.orange[700], size: 20),
+                    Icon(Icons.swap_horiz, color: Colors.orangeAccent, size: 20),
                     SizedBox(width: 8),
                     Text(
                       'Cambiar Rol',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: Colors.orange[900],
+                        color: Colors.orangeAccent,
                         fontSize: 16,
                       ),
                     ),
@@ -298,7 +353,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Text(
                   'Rol actual: ${_authService.isDoctor ? "Doctor" : "Paciente"}',
                   style: TextStyle(
-                    color: Colors.orange[800],
+                    color: Colors.white,
                     fontSize: 14,
                   ),
                 ),
@@ -307,7 +362,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   'Nota: El cambio de rol sólo es posible con cuentas reales en la API.',
                   style: TextStyle(
                     fontSize: 12,
-                    color: Colors.orange[700],
+                    color: Color(0xFF9CA3AF),
                     fontStyle: FontStyle.italic,
                   ),
                 ),
@@ -315,20 +370,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           ListTile(
-            leading: Icon(Icons.delete_outline, color: Colors.red),
-            title: Text('Cerrar sesión y limpiar datos'),
-            subtitle: Text('Elimina la sesión activa'),
+            leading: Icon(Icons.delete_outline, color: Colors.redAccent),
+            title: Text('Cerrar sesión y limpiar datos', style: TextStyle(color: Colors.white)),
+            subtitle: Text('Elimina la sesión activa', style: TextStyle(color: Color(0xFF9CA3AF))),
             onTap: () {
               showDialog(
                 context: context,
                 builder: (context) => AlertDialog(
-                  title: Text('Limpiar Datos'),
+                  backgroundColor: Color(0xFF16213E),
+                  title: Text('Limpiar Datos', style: TextStyle(color: Colors.white)),
                   content: Text(
-                      '¿Estás seguro? Se cerrará tu sesión y se limpiarán los datos de la app.'),
+                      '¿Estás seguro? Se cerrará tu sesión y se limpiarán los datos de la app.',
+                      style: TextStyle(color: Color(0xFF9CA3AF))),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(context),
-                      child: Text('Cancelar'),
+                      child: Text('Cancelar', style: TextStyle(color: Color(0xFF9CA3AF))),
                     ),
                     TextButton(
                       onPressed: () async {
@@ -343,7 +400,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       },
                       child: Text(
                         'Limpiar',
-                        style: TextStyle(color: Colors.red),
+                        style: TextStyle(color: Colors.redAccent),
                       ),
                     ),
                   ],
@@ -361,21 +418,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
           child: Text(
-            'Cuenta',
+            'CUENTA',
             style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.6),
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.2,
+              color: Color(0xFF9CA3AF),
             ),
           ),
         ),
         ListTile(
-          leading: Icon(Icons.exit_to_app, color: Color(0xFFd4183d)),
+          contentPadding: EdgeInsets.symmetric(horizontal: 24),
+          leading: Icon(Icons.exit_to_app, color: Color(0xFFE63946)),
           title: Text(
             'Cerrar Sesión',
-            style: TextStyle(color: Color(0xFFd4183d)),
+            style: TextStyle(color: Color(0xFFE63946), fontWeight: FontWeight.bold),
           ),
           onTap: () {
             Navigator.pushReplacement(
@@ -384,7 +443,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             );
           },
         ),
-        SizedBox(height: 20),
+        SizedBox(height: 32),
       ],
     );
   }

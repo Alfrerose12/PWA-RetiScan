@@ -13,6 +13,7 @@ class Patient {
   final String? userId;
   final int totalAnalyses;
   final DateTime? createdAt;
+  final DateTime? lastVisit;
 
   Patient({
     required this.id,
@@ -27,6 +28,7 @@ class Patient {
     this.userId,
     this.totalAnalyses = 0,
     this.createdAt,
+    this.lastVisit,
   });
 
   /// Nombre completo para mostrar en la UI
@@ -59,6 +61,10 @@ class Patient {
       final rawCa = json['created_at'] ?? json['createdAt'];
       if (rawCa != null) ca = DateTime.tryParse(rawCa.toString());
 
+      DateTime? lv;
+      final rawLv = json['last_visit'] ?? json['lastVisit'];
+      if (rawLv != null) lv = DateTime.tryParse(rawLv.toString());
+
       return Patient(
         id:              (json['id'] ?? '').toString(),
         firstName:       (json['first_name'] ?? json['firstName'] ?? '').toString(),
@@ -72,6 +78,7 @@ class Patient {
         userId:          json['user_id']?.toString(),
         totalAnalyses:   ((json['total_analyses'] ?? json['totalAnalyses']) as num?)?.toInt() ?? 0,
         createdAt:       ca,
+        lastVisit:       lv,
       );
     } catch (e) {
       debugPrint('[Patient.fromJson] ERROR: $e\nJSON: $json');
@@ -88,6 +95,8 @@ class Patient {
     if (gender != null) 'gender': gender,
     if (email  != null) 'email':  email,
     if (phone  != null) 'phone':  phone,
+    if (lastVisit != null) 'lastVisit': lastVisit!.toIso8601String(),
+    if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
   };
 
   Patient copyWith({
@@ -103,6 +112,7 @@ class Patient {
     String?   userId,
     int?      totalAnalyses,
     DateTime? createdAt,
+    DateTime? lastVisit,
   }) {
     return Patient(
       id:              id              ?? this.id,
@@ -117,6 +127,7 @@ class Patient {
       userId:          userId          ?? this.userId,
       totalAnalyses:   totalAnalyses   ?? this.totalAnalyses,
       createdAt:       createdAt       ?? this.createdAt,
+      lastVisit:       lastVisit       ?? this.lastVisit,
     );
   }
 }

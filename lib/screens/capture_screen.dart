@@ -144,7 +144,9 @@ class _CaptureScreenState extends State<CaptureScreen>
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [
-                          Color(0xFF2D385E).withOpacity(0.1),
+                          Theme.of(context).brightness == Brightness.dark
+                            ? Color(0xFF2D385E).withOpacity(0.1)
+                            : Colors.blueAccent.withOpacity(0.05),
                           Theme.of(context).colorScheme.primary.withOpacity(0.1),
                         ],
                       ),

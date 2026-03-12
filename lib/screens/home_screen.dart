@@ -5,7 +5,15 @@ import 'profile_screen.dart';
 import 'settings_screen.dart';
 import 'patient_management_screen.dart';
 import '../services/auth_service.dart';
+import '../services/patient_service.dart';
+import '../widgets/dashboard_charts.dart';
 
+// Las referencias de color se obtendrán ahora directamente del Theme
+// para soportar tanto modo claro como modo oscuro dinámicamente.
+
+// ══════════════════════════════════════════════
+//  HOME SCREEN (Shell de navegación)
+// ══════════════════════════════════════════════
 class HomeScreen extends StatefulWidget {
   @override
   _HomeScreenState createState() => _HomeScreenState();
@@ -13,34 +21,11 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   int _currentIndex = 0;
-  late AnimationController _fabController;
-  late Animation<double> _fabAnimation;
   final AuthService _authService = AuthService();
 
-  @override
-  void initState() {
-    super.initState();
-    
-    _fabController = AnimationController(
-      duration: Duration(milliseconds: 300),
-      vsync: this,
-    );
-    _fabAnimation = CurvedAnimation(
-      parent: _fabController,
-      curve: Curves.easeInOut,
-    );
-    _fabController.forward();
-  }
-
-  @override
-  void dispose() {
-    _fabController.dispose();
-    super.dispose();
-  }
-
+  // ── Pantallas según rol ──
   List<Widget> _getScreens() {
     if (_authService.isDoctor) {
-      // Doctor: Inicio | Gestión de Pacientes | Perfil
       return [
         HomeContent(),
         PatientManagementScreen(),
@@ -56,67 +41,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
   }
 
-  List<BottomNavigationBarItem> _getNavItems() {
+  // ── Items de navegación (directos, sin fantasmas) ──
+  List<_NavItem> _getNavItems() {
     if (_authService.isDoctor) {
       return [
-        BottomNavigationBarItem(
-          icon: Icon(Icons.home_outlined),
-          activeIcon: Icon(Icons.home),
-          label: 'Inicio',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.admin_panel_settings_outlined),
-          activeIcon: Icon(Icons.admin_panel_settings),
-          label: 'Pacientes',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.person_outline),
-          activeIcon: Icon(Icons.person),
-          label: 'Perfil',
-        ),
+        _NavItem(Icons.dashboard_outlined, Icons.dashboard, 'Inicio'),
+        _NavItem(Icons.people_outline, Icons.people, 'Pacientes'),
+        _NavItem(Icons.person_outline, Icons.person, 'Perfil'),
       ];
     } else {
       return [
-        BottomNavigationBarItem(
-          icon: Icon(Icons.home_outlined),
-          activeIcon: Icon(Icons.home),
-          label: 'Inicio',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.camera_alt_outlined),
-          activeIcon: Icon(Icons.camera_alt),
-          label: 'Captura',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.history_outlined),
-          activeIcon: Icon(Icons.history),
-          label: 'Histórico',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.person_outline),
-          activeIcon: Icon(Icons.person),
-          label: 'Perfil',
-        ),
+        _NavItem(Icons.dashboard_outlined, Icons.dashboard, 'Inicio'),
+        _NavItem(Icons.camera_alt_outlined, Icons.camera_alt, 'Captura'),
+        _NavItem(Icons.history_outlined, Icons.history, 'Histórico'),
+        _NavItem(Icons.person_outline, Icons.person, 'Perfil'),
       ];
-    }
-  }
-
-  String _getAppBarTitle() {
-    if (_authService.isDoctor) {
-      switch (_currentIndex) {
-        case 0: return 'RetiScan';
-        case 1: return 'Gestión de Pacientes';
-        case 2: return 'Perfil';
-        default: return 'RetiScan';
-      }
-    } else {
-      switch (_currentIndex) {
-        case 0: return 'RetiScan';
-        case 1: return 'Captura';
-        case 2: return 'Histórico';
-        case 3: return 'Perfil';
-        default: return 'RetiScan';
-      }
     }
   }
 
@@ -127,60 +66,141 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isDesktop = constraints.maxWidth >= 800;
-        if (isDesktop) {
+        if (constraints.maxWidth >= 800) {
           return _buildDesktopLayout(screens, navItems);
-        } else {
-          return _buildMobileLayout(screens, navItems);
         }
+        return _buildMobileLayout(screens, navItems);
       },
     );
   }
 
-  Widget _buildDesktopLayout(List<Widget> screens, List<BottomNavigationBarItem> navItems) {
+  // ═══════════════════════════════════════════
+  //  LAYOUT ESCRITORIO (Sidebar + contenido)
+  // ═══════════════════════════════════════════
+  Widget _buildDesktopLayout(List<Widget> screens, List<_NavItem> navItems) {
+    final primaryColor = Theme.of(context).brightness == Brightness.dark 
+        ? Theme.of(context).colorScheme.secondary 
+        : Theme.of(context).colorScheme.primary;
+    final bgColor = Theme.of(context).scaffoldBackgroundColor;
+    final cardColor = Theme.of(context).cardTheme.color ?? Theme.of(context).colorScheme.surface;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black;
+    final textSecondary = isDark ? Colors.white70 : (Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7) ?? Colors.grey);
+
     return Scaffold(
+      backgroundColor: bgColor,
       body: Row(
         children: [
-          NavigationRail(
-            selectedIndex: _currentIndex,
-            onDestinationSelected: (index) {
-              setState(() => _currentIndex = index);
-              _fabController.reset();
-              _fabController.forward();
-            },
-            labelType: NavigationRailLabelType.all,
-            leading: Column(
+          // ── Sidebar ──
+          Container(
+            width: 260,
+            decoration: BoxDecoration(
+              color: cardColor,
+              border: Border(
+                right: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1)),
+              ),
+            ),
+            child: Column(
               children: [
-                SizedBox(height: 24),
-                Icon(Icons.remove_red_eye, size: 48, color: Theme.of(context).colorScheme.primary),
-                SizedBox(height: 8),
-                Text('RetiScan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                SizedBox(height: 40),
+                // Logo + Badge (Imagen 4)
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 24),
+                  child: Row(
+                    children: [
+                      Icon(Icons.remove_red_eye, size: 28, color: primaryColor),
+                      SizedBox(width: 12),
+                      Text(
+                        'RetiScan',
+                        style: TextStyle(
+                          color: textPrimary,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 20,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      SizedBox(width: 10),
+                      Container(
+                        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: primaryColor.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          _authService.isDoctor ? 'Médico' : 'Paciente',
+                          style: TextStyle(
+                            color: primaryColor,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: 40),
+                // ── Nav items ──
+                ...navItems.asMap().entries.map((entry) {
+                  final i = entry.key;
+                  final item = entry.value;
+                  final isSelected = _currentIndex == i;
+                  return Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => setState(() => _currentIndex = i),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          decoration: BoxDecoration(
+                            color: isSelected ? primaryColor.withOpacity(0.15) : Colors.transparent,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                isSelected ? item.activeIcon : item.icon,
+                                color: isSelected ? primaryColor : textSecondary,
+                                size: 22,
+                              ),
+                              SizedBox(width: 14),
+                              Text(
+                                item.label,
+                                style: TextStyle(
+                                  color: isSelected ? primaryColor : textSecondary,
+                                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                                  fontSize: 15,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+                Spacer(),
+                Divider(color: Theme.of(context).dividerColor.withOpacity(0.1), indent: 24, endIndent: 24),
+                // Ajustes
+                _buildSidebarFooterItem(Icons.settings_outlined, 'Ajustes', () {
+                  Navigator.push(context, MaterialPageRoute(
+                    builder: (_) => Scaffold(
+                      appBar: AppBar(title: Text('Ajustes'), backgroundColor: cardColor, foregroundColor: textPrimary),
+                      body: SettingsScreen(),
+                    ),
+                  ));
+                }, textSecondary),
+                // Cerrar Sesión
+                _buildSidebarFooterItem(Icons.logout, 'Cerrar Sesión', () {
+                  _authService.logout();
+                  Navigator.of(context).pushReplacementNamed('/');
+                }, Theme.of(context).colorScheme.error),
                 SizedBox(height: 24),
               ],
             ),
-            destinations: navItems.map((item) {
-              return NavigationRailDestination(
-                icon: item.icon,
-                selectedIcon: item.activeIcon,
-                label: Text(item.label!),
-              );
-            }).toList(),
-            trailing: Expanded(
-              child: Align(
-                alignment: Alignment.bottomCenter,
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 24.0),
-                  child: IconButton(
-                    icon: Icon(Icons.settings),
-                    onPressed: () {
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => Scaffold(appBar: AppBar(title: Text('Ajustes')), body: SettingsScreen())));
-                    },
-                  ),
-                ),
-              ),
-            ),
           ),
-          VerticalDivider(thickness: 1, width: 1),
+          // ── Contenido principal ──
           Expanded(
             child: AnimatedSwitcher(
               duration: Duration(milliseconds: 300),
@@ -192,84 +212,169 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildMobileLayout(List<Widget> screens, List<BottomNavigationBarItem> navItems) {
+  Widget _buildSidebarFooterItem(IconData icon, String label, VoidCallback onTap, Color iconColor) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                Icon(icon, color: iconColor, size: 22),
+                SizedBox(width: 14),
+                Text(label, style: TextStyle(color: iconColor, fontSize: 15)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════
+  //  LAYOUT MÓVIL (AppBar + BottomNav + FAB)
+  // ═══════════════════════════════════════════
+  Widget _buildMobileLayout(List<Widget> screens, List<_NavItem> navItems) {
+    final primaryColor = Theme.of(context).brightness == Brightness.dark 
+        ? Theme.of(context).colorScheme.secondary 
+        : Theme.of(context).colorScheme.primary;
+    final bgColor = Theme.of(context).scaffoldBackgroundColor;
+    final cardColor = Theme.of(context).cardTheme.color ?? Theme.of(context).colorScheme.surface;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black;
+    final textSecondary = isDark ? Colors.white70 : (Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7) ?? Colors.grey);
+
     return Scaffold(
+      backgroundColor: bgColor,
       appBar: AppBar(
+        backgroundColor: bgColor,
+        elevation: 0,
         title: Row(
           children: [
+            Icon(Icons.remove_red_eye, color: primaryColor, size: 24),
+            SizedBox(width: 10),
             Text(
-              _getAppBarTitle(),
-              style: TextStyle(fontWeight: FontWeight.bold),
+              'RetiScan',
+              style: TextStyle(
+                color: textPrimary,
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+              ),
             ),
-            if (_authService.currentUser != null) ...[ 
-              SizedBox(width: 8),
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Color(0xFF2563EB).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  _authService.isDoctor ? 'Médico' : 'Paciente',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context).colorScheme.primary,
-                    fontWeight: FontWeight.w600,
-                  ),
+            SizedBox(width: 8),
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: primaryColor.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                _authService.isDoctor ? 'Médico' : 'Paciente',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: primaryColor,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-            ],
+            ),
           ],
         ),
         actions: [
           Builder(
-            builder: (BuildContext context) {
-              return IconButton(
-                icon: Icon(Icons.settings),
-                onPressed: () {
-                  Scaffold.of(context).openEndDrawer();
-                },
-              );
-            },
+            builder: (context) => IconButton(
+              icon: Icon(Icons.settings_outlined, color: textSecondary),
+              onPressed: () => Scaffold.of(context).openEndDrawer(),
+            ),
           ),
         ],
       ),
-      endDrawer: Drawer(
-        child: SettingsScreen(),
-      ),
+      endDrawer: Drawer(child: SettingsScreen()),
       body: AnimatedSwitcher(
         duration: Duration(milliseconds: 300),
         child: screens[_currentIndex],
       ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 20,
-              offset: Offset(0, -5),
-            ),
-          ],
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (index) {
-            setState(() => _currentIndex = index);
-            _fabController.reset();
-            _fabController.forward();
-          },
-          type: BottomNavigationBarType.fixed,
-          selectedItemColor: Theme.of(context).colorScheme.secondary,
-          unselectedItemColor: Colors.grey,
-          selectedFontSize: 12,
-          unselectedFontSize: 12,
-          items: navItems,
+      // FAB central (Imagen 1)
+      floatingActionButton: _authService.isDoctor ? null : FloatingActionButton(
+        onPressed: () {
+          setState(() => _currentIndex = 1); // Ir a Captura para paciente
+        },
+        backgroundColor: primaryColor,
+        elevation: 8,
+        shape: CircleBorder(),
+        child: Icon(Icons.add, color: Theme.of(context).colorScheme.onPrimary, size: 28),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      // Bottom Nav simple y directo
+      bottomNavigationBar: BottomAppBar(
+        color: cardColor,
+        shape: _authService.isDoctor ? null : CircularNotchedRectangle(),
+        notchMargin: 8,
+        child: SizedBox(
+          height: 60,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              ...navItems.asMap().entries.map((entry) {
+                final i = entry.key;
+                final item = entry.value;
+                final isSelected = _currentIndex == i;
+                // Insertar espacio en el medio para el FAB solo si no es doctor
+                final middleIndex = navItems.length ~/ 2;
+                final widgets = <Widget>[];
+                if (!_authService.isDoctor && i == middleIndex) {
+                  widgets.add(SizedBox(width: 48)); // Espacio para el FAB
+                }
+                widgets.add(
+                  Expanded(
+                    child: InkWell(
+                      onTap: () => setState(() => _currentIndex = i),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            isSelected ? item.activeIcon : item.icon,
+                            color: isSelected ? primaryColor : textSecondary,
+                            size: 24,
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            item.label,
+                            style: TextStyle(
+                              color: isSelected ? primaryColor : textSecondary,
+                              fontSize: 10,
+                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+                return widgets;
+              }).expand((w) => w),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
+// Helper class para items de navegación
+class _NavItem {
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
+  _NavItem(this.icon, this.activeIcon, this.label);
+}
+
+// ══════════════════════════════════════════════
+//  HOME CONTENT (Dashboard principal)
+// ══════════════════════════════════════════════
 class HomeContent extends StatefulWidget {
   @override
   _HomeContentState createState() => _HomeContentState();
@@ -280,25 +385,28 @@ class _HomeContentState extends State<HomeContent>
   late AnimationController _controller;
   late List<Animation<Offset>> _slideAnimations;
   final AuthService _authService = AuthService();
+  
+  String? _realName;
+  bool _isLoadingName = false;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: Duration(milliseconds: 500),
+      duration: Duration(milliseconds: 600),
       vsync: this,
     );
 
     _slideAnimations = List.generate(
-      5,
+      6,
       (index) => Tween<Offset>(
-        begin: Offset(0, 0.3),
+        begin: Offset(0, 0.2),
         end: Offset.zero,
       ).animate(
         CurvedAnimation(
           parent: _controller,
           curve: Interval(
-            index * 0.15,
+            index * 0.12,
             1.0,
             curve: Curves.easeOut,
           ),
@@ -307,6 +415,38 @@ class _HomeContentState extends State<HomeContent>
     );
 
     _controller.forward();
+    _fetchRealName();
+  }
+
+  Future<void> _fetchRealName() async {
+    final user = _authService.currentUser;
+    if (user == null) return;
+    
+    // Si ya tenemos el nombre en el User, lo usamos
+    if (user.name != null && user.name!.isNotEmpty) {
+      if (mounted) {
+        setState(() => _realName = user.name);
+      }
+      return;
+    }
+
+    // Buscamos en el perfil del paciente
+    if (user.isPatient) {
+      if (mounted) setState(() => _isLoadingName = true);
+      try {
+        final patientService = PatientService();
+        final patient = await patientService.getMyRecord();
+        if (mounted) {
+          setState(() {
+            _realName = patient.fullName;
+          });
+        }
+      } catch (e) {
+        debugPrint('Error fetch real name in home: $e');
+      } finally {
+        if (mounted) setState(() => _isLoadingName = false);
+      }
+    }
   }
 
   @override
@@ -319,68 +459,68 @@ class _HomeContentState extends State<HomeContent>
   Widget build(BuildContext context) {
     final user = _authService.currentUser;
     final isDoctor = user?.isDoctor ?? false;
-    
-    return Center(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: 800),
-        child: SingleChildScrollView(
-          padding: EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildAnimatedWidget(0, _buildWelcomeCard(context, isDoctor)),
-              SizedBox(height: 24),
-              if (isDoctor) ...[
-                // Contenido para médicos
-                _buildAnimatedWidget(1, _buildSectionTitle(context, 'Pacientes Recientes')),
-                SizedBox(height: 16),
-                _buildAnimatedWidget(2, _buildPatientItem(context, 'Juan Pérez', 'Normal', '15 Nov 2024')),
-                _buildAnimatedWidget(3, _buildPatientItem(context, 'María García', 'Revisión', '14 Nov 2024')),
-                _buildAnimatedWidget(4, _buildPatientItem(context, 'Carlos López', 'Leve', '13 Nov 2024')),
+    final userName = _realName ?? user?.fullName ?? user?.email ?? 'Usuario';
+
+    return Container(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: 900),
+          child: SingleChildScrollView(
+            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ── Tarjeta de bienvenida ──
+                _animated(0, _buildWelcomeCard(context, userName, isDoctor)),
                 SizedBox(height: 24),
-                _buildSectionTitle(context, 'Acciones Rápidas'),
-                SizedBox(height: 16),
-                _buildRecommendationCard(
-                  context,
-                  'Revisar diagnósticos pendientes',
-                  Icons.assignment_outlined,
-                ),
-                _buildRecommendationCard(
-                  context,
-                  'Actualizar protocolos de tratamiento',
-                  Icons.medical_services_outlined,
-                ),
-              ] else ...[
-                // Contenido para usuarios
-                _buildAnimatedWidget(1, _buildSectionTitle(context, 'Historial Reciente')),
-                SizedBox(height: 16),
-                _buildAnimatedWidget(2, _buildHistoryItem(context, '15 Nov 2024', 'Normal')),
-                _buildAnimatedWidget(3, _buildHistoryItem(context, '01 Nov 2024', 'Normal')),
-                _buildAnimatedWidget(4, _buildHistoryItem(context, '15 Oct 2024', 'Leve')),
+
+                // ── Stats Row ──
+                _animated(1, _buildStatsRow(context, isDoctor)),
+                SizedBox(height: 28),
+
+                // ── Gráfico de análisis ──
+                _animated(2, _buildChartCard(context, isDoctor)),
+                SizedBox(height: 28),
+
+                // ── Listas contextuales ──
+                if (isDoctor) ...[
+                  _animated(3, _buildSectionTitle('Pacientes Recientes')),
+                  SizedBox(height: 12),
+                  _animated(4, _buildPatientCard('Juan Pérez', 'Normal', '15 Nov 2024')),
+                  _animated(4, _buildPatientCard('María García', 'Revisión', '14 Nov 2024')),
+                  _animated(4, _buildPatientCard('Carlos López', 'Leve', '13 Nov 2024')),
+                ] else ...[
+                  _animated(3, _buildSectionTitle('Últimos Análisis')),
+                  SizedBox(height: 12),
+                  _animated(4, _buildAnalysisCard('15 Nov 2024', 'Normal')),
+                  _animated(4, _buildAnalysisCard('01 Nov 2024', 'Normal')),
+                  _animated(4, _buildAnalysisCard('15 Oct 2024', 'Leve')),
+                ],
+                SizedBox(height: 28),
+
+                // ── Acciones rápidas ──
+                _animated(5, _buildSectionTitle('Acciones Rápidas')),
+                SizedBox(height: 12),
+                if (isDoctor) ...[
+                  _animated(5, _buildQuickAction(Icons.person_add_outlined, 'Registrar nuevo paciente')),
+                  _animated(5, _buildQuickAction(Icons.assignment_outlined, 'Revisar diagnósticos pendientes')),
+                ] else ...[
+                  _animated(5, _buildQuickAction(Icons.camera_alt_outlined, 'Realizar nueva captura')),
+                  _animated(5, _buildQuickAction(Icons.calendar_today_outlined, 'Programar próxima revisión')),
+                ],
                 SizedBox(height: 24),
-                _buildSectionTitle(context, 'Recomendaciones'),
-                SizedBox(height: 16),
-                _buildRecommendationCard(
-                  context,
-                  'Realiza tu siguiente revisión en 15 días',
-                  Icons.calendar_today,
-                ),
-                _buildRecommendationCard(
-                  context,
-                  'Mantén una dieta rica en vitamina A',
-                  Icons.restaurant,
-                ),
               ],
-            ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildAnimatedWidget(int index, Widget child) {
+  Widget _animated(int index, Widget child) {
     return SlideTransition(
-      position: _slideAnimations[index],
+      position: _slideAnimations[index % _slideAnimations.length],
       child: FadeTransition(
         opacity: _controller,
         child: child,
@@ -388,67 +528,59 @@ class _HomeContentState extends State<HomeContent>
     );
   }
 
-  Widget _buildWelcomeCard(BuildContext context, bool isDoctor) {
+  // ── Tarjeta de bienvenida ──
+  Widget _buildWelcomeCard(BuildContext context, String name, bool isDoctor) {
+    final primaryColor = Theme.of(context).brightness == Brightness.dark 
+        ? Theme.of(context).colorScheme.secondary 
+        : Theme.of(context).colorScheme.primary;
+    final secondaryColor = Theme.of(context).colorScheme.secondary;
+
     return Container(
       padding: EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Theme.of(context).colorScheme.primary,
-            Theme.of(context).colorScheme.secondary,
-          ],
+          colors: [primaryColor, secondaryColor],
         ),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Color(0xFF2563EB).withOpacity(0.3),
-            blurRadius: 20,
-            offset: Offset(0, 10),
+            color: primaryColor.withOpacity(0.35),
+            blurRadius: 24,
+            offset: Offset(0, 12),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          Row(
+          Positioned(
+            right: -30,
+            top: -30,
+            child: Icon(Icons.remove_red_eye, size: 120, color: Colors.white.withOpacity(0.08)),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                padding: EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  isDoctor ? Icons.medical_services : Icons.visibility,
-                  color: Theme.of(context).colorScheme.onPrimary,
-                  size: 28,
-                ),
+              Text(
+                isDoctor ? '¡Bienvenido, Doctor!' : '¡Bienvenido!',
+                style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 14),
               ),
-              SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      isDoctor ? '¡Bienvenido, Doctor!' : '¡Bienvenido!',
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onPrimary,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
+              SizedBox(height: 6),
+              _isLoadingName
+                  ? SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : Text(
+                      name,
+                      style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    SizedBox(height: 4),
-                    Text(
-                      isDoctor ? 'Panel de gestión de pacientes' : 'Tu salud visual es nuestra prioridad',
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.9),
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
+              SizedBox(height: 16),
+              Text(
+                isDoctor
+                    ? 'Panel de gestión de pacientes y análisis'
+                    : 'Tu salud visual es nuestra prioridad',
+                style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 14),
               ),
             ],
           ),
@@ -457,51 +589,154 @@ class _HomeContentState extends State<HomeContent>
     );
   }
 
-  Widget _buildSectionTitle(BuildContext context, String title) {
+  // ── Stats Row (contextualizado) ──
+  Widget _buildStatsRow(BuildContext context, bool isDoctor) {
+    if (isDoctor) {
+      return Row(
+        children: [
+          Expanded(child: _buildStatCard(Icons.people, 'Pacientes', '24')),
+          SizedBox(width: 12),
+          Expanded(child: _buildStatCard(Icons.analytics_outlined, 'Análisis Hoy', '5')),
+          SizedBox(width: 12),
+          Expanded(child: _buildStatCard(Icons.pending_actions, 'Pendientes', '3')),
+        ],
+      );
+    }
+    return Row(
+      children: [
+        Expanded(child: _buildStatCard(Icons.visibility, 'Mis Análisis', '8')),
+        SizedBox(width: 12),
+        Expanded(child: _buildStatCard(Icons.check_circle_outline, 'Estado', 'Normal')),
+        SizedBox(width: 12),
+        Expanded(child: _buildStatCard(Icons.calendar_today, 'Próxima Rev.', '15 Dic')),
+      ],
+    );
+  }
+
+  Widget _buildStatCard(IconData icon, String title, String value) {
+    final primaryColor = Theme.of(context).brightness == Brightness.dark 
+        ? Theme.of(context).colorScheme.secondary 
+        : Theme.of(context).colorScheme.primary;
+
+    return Container(
+      padding: EdgeInsets.symmetric(vertical: 20, horizontal: 14),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardTheme.color ?? Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.1)),
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: primaryColor.withOpacity(0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: primaryColor, size: 22),
+          ),
+          SizedBox(height: 12),
+          Text(title, style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7), fontSize: 11), textAlign: TextAlign.center),
+          SizedBox(height: 6),
+          Text(value, style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color, fontSize: 18, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChartCard(BuildContext context, bool isDoctor) {
+    final primaryColor = Theme.of(context).brightness == Brightness.dark 
+        ? Theme.of(context).colorScheme.secondary 
+        : Theme.of(context).colorScheme.primary;
+
+    return Container(
+      padding: EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardTheme.color ?? Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                isDoctor ? 'Análisis por Mes' : 'Mi Progreso',
+                style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color, fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: primaryColor.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text('2024', style: TextStyle(color: primaryColor, fontSize: 12, fontWeight: FontWeight.w600)),
+              ),
+            ],
+          ),
+          SizedBox(height: 20),
+          SizedBox(
+            height: 180,
+            child: DashboardCharts(),
+          ),
+          SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _buildLegendDot(Colors.cyanAccent, isDoctor ? 'Normales' : 'Análisis'),
+              SizedBox(width: 24),
+              _buildLegendDot(Colors.pinkAccent, isDoctor ? 'Con hallazgos' : 'Hallazgos'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLegendDot(Color color, String label) {
+    return Row(
+      children: [
+        Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        SizedBox(width: 6),
+        Text(label, style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color, fontSize: 12)),
+      ],
+    );
+  }
+
+  // ── Títulos de sección ──
+  Widget _buildSectionTitle(String title) {
     return Text(
       title,
-      style: TextStyle(
-        fontSize: 20,
-        fontWeight: FontWeight.bold,
-        color: Theme.of(context).textTheme.headlineMedium?.color,
-      ),
+      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.8)),
     );
   }
 
-  Widget _buildHistoryItem(BuildContext context, String date, String status) {
-    Color statusColor = status == 'Normal' ? Colors.green : Colors.orange;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+  Widget _buildAnalysisCard(String date, String status) {
+    final isNormal = status == 'Normal';
+    final statusColor = isNormal ? Color(0xFF04B5A2) : Color(0xFFFEB33B);
 
     return Container(
-      margin: EdgeInsets.only(bottom: 12),
-      padding: EdgeInsets.all(16),
+      margin: EdgeInsets.only(bottom: 10),
+      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardTheme.color,
+        color: Theme.of(context).cardTheme.color ?? Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: statusColor.withOpacity(0.2),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
-            blurRadius: 10,
-            offset: Offset(0, 4),
-          ),
-        ],
+        border: Border.all(color: statusColor.withOpacity(0.2)),
       ),
       child: Row(
         children: [
           Container(
-            padding: EdgeInsets.all(8),
+            padding: EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
+              color: statusColor.withOpacity(0.15),
+              shape: BoxShape.circle,
             ),
             child: Icon(
-              status == 'Normal' ? Icons.check_circle : Icons.warning,
+              isNormal ? Icons.check_circle : Icons.warning_amber_rounded,
               color: statusColor,
-              size: 24,
+              size: 22,
             ),
           ),
           SizedBox(width: 16),
@@ -509,151 +744,99 @@ class _HomeContentState extends State<HomeContent>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  date,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    color: Theme.of(context).textTheme.bodyLarge?.color,
-                  ),
-                ),
+                Text(date, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: Theme.of(context).textTheme.bodyLarge?.color)),
                 SizedBox(height: 4),
-                Text(
-                  'Estado: $status',
-                  style: TextStyle(
-                    color: Theme.of(context).textTheme.bodyMedium?.color,
-                    fontSize: 14,
-                  ),
-                ),
+                Text('Estado: $status', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7), fontSize: 13)),
               ],
             ),
           ),
-          Icon(
-            Icons.arrow_forward_ios,
-            color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5),
-            size: 16,
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+            decoration: BoxDecoration(
+              color: statusColor.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(status.toUpperCase(), style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildPatientItem(BuildContext context, String name, String status, String date) {
-    Color statusColor = status == 'Normal' ? Colors.green : 
-                        status == 'Leve' ? Colors.orange : Colors.blue;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+  // ── Tarjeta de paciente (doctor) ──
+  Widget _buildPatientCard(String name, String status, String date) {
+    final statusColor = status == 'Normal' ? Color(0xFF04B5A2)
+        : status == 'Leve' ? Color(0xFFFEB33B)
+        : Theme.of(context).colorScheme.error;
 
     return Container(
-      margin: EdgeInsets.only(bottom: 12),
-      padding: EdgeInsets.all(16),
+      margin: EdgeInsets.only(bottom: 10),
+      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardTheme.color,
+        color: Theme.of(context).cardTheme.color ?? Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: statusColor.withOpacity(0.2),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
-            blurRadius: 10,
-            offset: Offset(0, 4),
-          ),
-        ],
+        border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.1)),
       ),
       child: Row(
         children: [
-          Container(
-            padding: EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              Icons.person,
-              color: statusColor,
-              size: 24,
-            ),
+          CircleAvatar(
+            radius: 22,
+            backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+            child: Icon(Icons.person, color: Theme.of(context).colorScheme.primary, size: 22),
           ),
           SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  name,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    color: Theme.of(context).textTheme.bodyLarge?.color,
-                  ),
-                ),
+                Text(name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: Theme.of(context).textTheme.bodyLarge?.color)),
                 SizedBox(height: 4),
-                Text(
-                  '$status • $date',
-                  style: TextStyle(
-                    color: Theme.of(context).textTheme.bodyMedium?.color,
-                    fontSize: 14,
-                  ),
-                ),
+                Text(date, style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7), fontSize: 13)),
               ],
             ),
           ),
-          Icon(
-            Icons.arrow_forward_ios,
-            color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5),
-            size: 16,
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: statusColor.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(status.toUpperCase(), style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildRecommendationCard(BuildContext context, String text, IconData icon) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = Theme.of(context).colorScheme.primary;
-    
+  // ── Acciones rápidas ──
+  Widget _buildQuickAction(IconData icon, String text) {
+    final primaryColor = Theme.of(context).brightness == Brightness.dark 
+        ? Theme.of(context).colorScheme.secondary 
+        : Theme.of(context).colorScheme.primary;
+
     return Container(
-      margin: EdgeInsets.only(bottom: 12),
-      padding: EdgeInsets.all(16),
+      margin: EdgeInsets.only(bottom: 10),
+      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
-        color: isDark 
-          ? primaryColor.withOpacity(0.1)
-          : Color(0xFF2563EB).withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isDark
-            ? primaryColor.withOpacity(0.3)
-            : Color(0xFF2563EB).withOpacity(0.3),
-          width: 1,
-        ),
+        color: primaryColor.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: primaryColor.withOpacity(0.2)),
       ),
       child: Row(
         children: [
           Container(
             padding: EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: isDark
-                ? primaryColor.withOpacity(0.2)
-                : Color(0xFF2563EB).withOpacity(0.2),
-              borderRadius: BorderRadius.circular(8),
+              color: primaryColor.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(
-              icon,
-              color: isDark ? primaryColor : Color(0xFF2563EB),
-              size: 20,
-            ),
+            child: Icon(icon, color: primaryColor, size: 20),
           ),
-          SizedBox(width: 12),
+          SizedBox(width: 14),
           Expanded(
-            child: Text(
-              text,
-              style: TextStyle(
-                color: Theme.of(context).textTheme.bodyLarge?.color,
-                fontSize: 14,
-              ),
-            ),
+            child: Text(text, style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color, fontSize: 14)),
           ),
+          Icon(Icons.arrow_forward_ios, color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5), size: 14),
         ],
       ),
     );

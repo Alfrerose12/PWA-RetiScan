@@ -208,7 +208,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     return FadeTransition(
       opacity: _fadeAnimation,
       child: ResponsiveWrapper(
-        maxWidth: 700,
+        maxWidth: 900,
         child: SingleChildScrollView(
           padding: EdgeInsets.all(20),
           child: Column(
@@ -234,9 +234,9 @@ class _ProfileScreenState extends State<ProfileScreen>
   // ── Header con avatar de iniciales ───────────────────────────────────────
 
   Widget _buildHeader(user) {
-    final name = user?.fullName;
+    final name = _patientData?.fullName ?? user?.fullName ?? user?.name ?? user?.email ?? '';
     final email = user?.email ?? '';
-    final initials = _getInitials(name ?? email);
+    final initials = _getInitials(name);
 
     return Container(
       width: double.infinity,

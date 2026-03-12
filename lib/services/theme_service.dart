@@ -5,6 +5,13 @@ class ThemeService extends ChangeNotifier {
   bool _isDarkMode = false;
   static const String _themeKey = 'isDarkMode';
 
+  // Define base colors
+  static const Color completeBlue = Color(0xFF17387A);
+  static const Color lightSkyBlue = Color(0xFF8BD6FD);
+  static const Color brightCyan = Color(0xFF02B4F5);
+  static const Color teal = Color(0xFF04B5A2);
+  static const Color orangeYellow = Color(0xFFFEB33B);
+
   bool get isDarkMode => _isDarkMode;
 
   ThemeService() {
@@ -16,8 +23,8 @@ class ThemeService extends ChangeNotifier {
         useMaterial3: true,
         brightness: Brightness.light,
         colorScheme: ColorScheme.light(
-          primary: Color(0xFF2563EB),        // Azul Rey (Primary Brand)
-          secondary: Color(0xFF2563EB),      // Azul Oscuro (Gradiente Hero)
+          primary: Color(0xFF17387A),        // Complete Blue (Primary Brand)
+          secondary: Color(0xFF02B4F5),      // Bright Cyan (Gradiente Hero)
           surface: Color(0xFFFFFFFF),        // Background Light
           background: Color(0xFFFFFFFF),     // Background Light
           onPrimary: Color(0xFFFFFFFF),      // Primary Light
@@ -26,19 +33,19 @@ class ThemeService extends ChangeNotifier {
           onBackground: Color(0xFF252525),   // Foreground Light
           error: Color(0xFFd4183d),          // Destructive
         ),
-        primaryColor: Color(0xFF2563EB),
+        primaryColor: Color(0xFF17387A),
         scaffoldBackgroundColor: Colors.white,
         fontFamily: 'Roboto',
         textTheme: TextTheme(
           headlineLarge: TextStyle(
             fontSize: 32,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF2B2C2E),
+            color: Color(0xFF17387A),
           ),
           headlineMedium: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.w600,
-            color: Color(0xFF2B2C2E),
+            color: Color(0xFF17387A),
           ),
           bodyLarge: TextStyle(
             fontSize: 16,
@@ -55,9 +62,9 @@ class ThemeService extends ChangeNotifier {
         ),
         appBarTheme: AppBarTheme(
           backgroundColor: Colors.white,
-          foregroundColor: Color(0xFF2B2C2E),
+          foregroundColor: Color(0xFF17387A),
           elevation: 0,
-          iconTheme: IconThemeData(color: Color(0xFF2D385E)),
+          iconTheme: IconThemeData(color: Color(0xFF17387A)),
         ),
         cardTheme: CardThemeData(
           elevation: 2,
@@ -67,7 +74,7 @@ class ThemeService extends ChangeNotifier {
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: Color(0xFFf97316),  // Naranja (Botón de Acción)
+            backgroundColor: Color(0xFF04B5A2),  // Teal (Action Button)
             foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),  // Border Radius Base
@@ -93,30 +100,30 @@ class ThemeService extends ChangeNotifier {
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
             borderSide: BorderSide(
-              color: Color(0xFF2563EB),
+              color: Color(0xFF17387A),
               width: 2,
             ),
           ),
         ),
       );
 
-  // Tema Oscuro - Adaptado del diseño original
+  // Tema Oscuro - Diseño Original
   ThemeData get darkTheme => ThemeData(
         useMaterial3: true,
         brightness: Brightness.dark,
         colorScheme: ColorScheme.dark(
-          primary: Color(0xFF60A5FA),        // Azul Claro (Primary en oscuro)
-          secondary: Color(0xFF0EA5E9),      // Azul Claro (Gradiente Hero)
-          surface: Color(0xFF1f1f1f),        // Sidebar Background
-          background: Color(0xFF1a1a1a),     // Background Dark
-          onPrimary: Color(0xFF030213),      // Primary Dark
-          onSecondary: Color(0xFF030213),    // Primary Dark
+          primary: Color(0xFF17387A),        // Complete Blue (Primary Brand)
+          secondary: Color(0xFF02B4F5),      // Bright Cyan (Gradiente Hero)
+          surface: Color(0xFF16213E),        // Sidebar Background
+          background: Color(0xFF1A1A2E),     // Background Dark
+          onPrimary: Color(0xFFFFFFFF),      // Primary Light
+          onSecondary: Color(0xFFFFFFFF),    // Primary Light
           onSurface: Color(0xFFfafafa),      // Foreground Dark
           onBackground: Color(0xFFfafafa),   // Foreground Dark
           error: Color(0xFFd4183d),          // Destructive
         ),
-        primaryColor: Color(0xFF60A5FA),
-        scaffoldBackgroundColor: Color(0xFF1a1a1a),
+        primaryColor: Color(0xFF17387A),
+        scaffoldBackgroundColor: Color(0xFF1A1A2E), // Primary Dark
         fontFamily: 'Roboto',
         textTheme: TextTheme(
           headlineLarge: TextStyle(
@@ -143,13 +150,13 @@ class ThemeService extends ChangeNotifier {
           ),
         ),
         appBarTheme: AppBarTheme(
-          backgroundColor: Color(0xFF1f1f1f),
+          backgroundColor: Color(0xFF1A1A2E),
           foregroundColor: Color(0xFFfafafa),
           elevation: 0,
-          iconTheme: IconThemeData(color: Color(0xFF0EA5E9)),
+          iconTheme: IconThemeData(color: Colors.white),
         ),
         cardTheme: CardThemeData(
-          color: Color(0xFF1f1f1f),
+          color: Color(0xFF16213E),
           elevation: 4,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -157,7 +164,7 @@ class ThemeService extends ChangeNotifier {
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: Color(0xFFf97316),  // Naranja (Botón de Acción)
+            backgroundColor: Color(0xFF04B5A2),  // Teal (Action Button)
             foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),  // Border Radius Base
@@ -183,7 +190,7 @@ class ThemeService extends ChangeNotifier {
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
             borderSide: BorderSide(
-              color: Color(0xFF64C8FF),
+              color: Color(0xFF17387A),
               width: 2,
             ),
           ),

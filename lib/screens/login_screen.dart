@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'dart:math' as math;
-import 'register_screen.dart';
 import 'login_loading_screen.dart';
 import 'change_password_screen.dart';
 import '../widgets/glassmorphic_card.dart';
@@ -162,8 +161,6 @@ class _LoginScreenState extends State<LoginScreen>
                             _buildLogoHeader(),
                             SizedBox(height: 40),
                             _buildLoginCard(),
-                            SizedBox(height: 24),
-                            _buildRegisterLink(),
                           ],
                         ),
                       ),
@@ -303,20 +300,29 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Widget _buildLoginCard() {
-    return GlassmorphicCard(
-      borderRadius: 24,
-      padding: EdgeInsets.all(28),
-      child: Column(
-        children: [
-          _buildEmailField(),
-          SizedBox(height: 20),
-          _buildPasswordField(),
-          SizedBox(height: 12),
-          _buildForgotPassword(),
-          SizedBox(height: 28),
-          _buildLoginButton(),
-        ],
-      ),
+    // Usar LayoutBuilder para aplicar paddings relativos al tamaño
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isDesktop = MediaQuery.of(context).size.width >= 800;
+        final paddingVertical = isDesktop ? 40.0 : 28.0;
+        final paddingHorizontal = isDesktop ? 48.0 : 24.0;
+        
+        return GlassmorphicCard(
+          borderRadius: 24,
+          padding: EdgeInsets.symmetric(horizontal: paddingHorizontal, vertical: paddingVertical),
+          child: Column(
+            children: [
+              _buildEmailField(),
+              SizedBox(height: 20),
+              _buildPasswordField(),
+              SizedBox(height: 12),
+              _buildForgotPassword(),
+              SizedBox(height: 32),
+              _buildLoginButton(),
+            ],
+          ),
+        );
+      }
     );
   }
 
@@ -445,89 +451,8 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  Widget _buildDivider() {
-    return Row(
-      children: [
-        Expanded(
-          child: Container(
-            height: 1.5,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Colors.transparent,
-                  Colors.white.withOpacity(0.3),
-                ],
-              ),
-            ),
-          ),
-        ),
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16),
-          child: Text(
-            'O',
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.7),
-              fontWeight: FontWeight.w600,
-              fontSize: 14,
-            ),
-          ),
-        ),
-        Expanded(
-          child: Container(
-            height: 1.5,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Colors.white.withOpacity(0.3),
-                  Colors.transparent,
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+  // Eliminado _buildDivider y _buildRegisterLink
 
-
-  Widget _buildRegisterLink() {
-    return TextButton(
-      onPressed: () {
-        Navigator.push(
-          context,
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) =>
-                RegisterScreen(),
-            transitionsBuilder:
-                (context, animation, secondaryAnimation, child) {
-              return FadeTransition(opacity: animation, child: child);
-            },
-            transitionDuration: Duration(milliseconds: 400),
-          ),
-        );
-      },
-      child: Text.rich(
-        TextSpan(
-          text: '¿No tienes cuenta? ',
-          style: TextStyle(
-            color: Colors.white.withOpacity(0.8),
-            fontSize: 15,
-          ),
-          children: [
-            TextSpan(
-              text: 'Regístrate',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 15,
-                decoration: TextDecoration.underline,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildLoadingOverlay() {
     return Container(
