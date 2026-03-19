@@ -2,6 +2,7 @@ import 'dart:convert';
 // ignore: avoid_web_libraries_in_flutter
 import 'dart:html' as html;
 import 'package:http/http.dart' as http;
+import 'package:http/browser_client.dart';
 import '../config/api_config.dart';
 import '../models/user.dart';
 
@@ -11,42 +12,70 @@ class AuthService {
   AuthService._internal();
 
   User? _currentUser;
+  
+  // ─────────────────────────────────────────────────────────────────
+  // Autenticación Avanzada (JWT Access Token en RAM)
+  // ─────────────────────────────────────────────────────────────────
+  String? _accessToken; // El token ahora vive solo en memoria, NO en localStorage
 
   User? get currentUser => _currentUser;
   bool get isAuthenticated => _currentUser != null;
   bool get isDoctor  => _currentUser?.isDoctor  ?? false;
   bool get isPatient => _currentUser?.isPatient ?? false;
   bool get isAdmin   => _currentUser?.isAdmin   ?? false;
-
-  // Alias para compatibilidad con pantallas existentes
   bool get isClient => isPatient;
 
-  String? get _token => html.window.localStorage['auth_token'];
+  String? get token => _accessToken;
 
-  void _saveToken(String token) =>
-      html.window.localStorage['auth_token'] = token;
+  // Generamos un cliente HTTP que soporte cookies cross-origin (withCredentials)
+  // crucial para que navegue el Refresh Token HttpOnly entre nuestra PWA y la API.
+  http.Client get _client {
+    var client = BrowserClient()..withCredentials = true;
+    return client;
+  }
 
   // ─────────────────────────────────────────────────────────────────
-  // Restaurar sesión desde localStorage al arrancar la app
+  // Restaurar sesión al arrancar la app usando Refresh Token Cookie
   // ─────────────────────────────────────────────────────────────────
   Future<bool> loadUserFromSession() async {
-    final token = _token;
-    if (token == null) return false;
+    // 1. Intentamos obtener un nuevo Access Token usando el Refresh Token (Cookie)
+    final refreshOk = await doRefresh();
+    if (!refreshOk) return false;
+
+    // 2. Si el refresh nos dio un token de 15m, bajamos el perfil
+    final t = _accessToken;
+    if (t == null) return false;
+    
     try {
-      final res = await http.get(
+      final res = await _client.get(
         Uri.parse('${ApiConfig.baseUrl}/users/profile'),
-        headers: ApiConfig.authHeaders(token),
+        headers: ApiConfig.authHeaders(t),
       );
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body) as Map<String, dynamic>;
-        // La API devuelve { user: {...} } o directamente el objeto
         final userData = (data['user'] ?? data) as Map<String, dynamic>;
-        _currentUser = User.fromJson(userData).copyWith(token: token);
+        _currentUser = User.fromJson(userData).copyWith(token: t);
         return true;
-      } else {
-        html.window.localStorage.remove('auth_token');
-        return false;
       }
+    } catch (_) {}
+    return false;
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // Lógica de Renovación Secreta de Sesión (/api/auth/refresh)
+  // ─────────────────────────────────────────────────────────────────
+  Future<bool> doRefresh() async {
+    try {
+      final res = await _client.post(
+        Uri.parse('${ApiConfig.baseUrl}/auth/refresh'),
+        headers: ApiConfig.jsonHeaders,
+      );
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        _accessToken = data['token'] as String; // Guardar nuevo token en RAM
+        return true;
+      }
+      return false; // Token expirado de verdad o no existente
     } catch (_) {
       return false;
     }
@@ -54,11 +83,10 @@ class AuthService {
 
   // ─────────────────────────────────────────────────────────────────
   // Login → POST /auth/login
-  // identifier puede ser email (médico) o username (paciente)
   // ─────────────────────────────────────────────────────────────────
   Future<Map<String, dynamic>> login(String identifier, String password) async {
     try {
-      final res = await http.post(
+      final res = await _client.post(
         Uri.parse('${ApiConfig.baseUrl}/auth/login'),
         headers: ApiConfig.jsonHeaders,
         body: jsonEncode({'identifier': identifier, 'password': password}),
@@ -67,10 +95,10 @@ class AuthService {
       final body = jsonDecode(res.body) as Map<String, dynamic>;
 
       if (res.statusCode == 200) {
-        final token    = body['token'] as String;
+        final t        = body['token'] as String;
         final userData = body['user'] as Map<String, dynamic>;
-        _currentUser   = User.fromJson(userData).copyWith(token: token);
-        _saveToken(token);
+        _accessToken   = t; // Solo a memoria
+        _currentUser   = User.fromJson(userData).copyWith(token: t);
 
         return {
           'success':            true,
@@ -78,8 +106,15 @@ class AuthService {
           'isVerified':         _currentUser!.isVerified,
           'role':               _currentUser!.role,
         };
+      } else if (res.statusCode == 206) {
+        return {
+          'success': true,
+          'requires2FA': true,
+          'userId': body['userId'],
+          'message': body['message'] ?? 'Código OTP enviado',
+        };
       } else {
-        // 403 = cuenta no verificada
+        // 401, 403, etc.
         final msg = (body['error'] ?? body['message'] ?? 'Credenciales inválidas').toString();
         return {'success': false, 'message': msg, 'statusCode': res.statusCode};
       }
@@ -89,19 +124,56 @@ class AuthService {
   }
 
   // ─────────────────────────────────────────────────────────────────
+  // Verificar OTP del Login (MFA Paso 2) → POST /auth/verify-login-otp
+  // ─────────────────────────────────────────────────────────────────
+  Future<Map<String, dynamic>> verifyLoginOtp(String userId, String otp) async {
+    try {
+      final res = await _client.post(
+        Uri.parse('${ApiConfig.baseUrl}/auth/verify-login-otp'),
+        headers: ApiConfig.jsonHeaders,
+        body: jsonEncode({'userId': userId, 'otp': otp}),
+      );
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+
+      if (res.statusCode == 200) {
+        final t        = body['token'] as String;
+        final userData = body['user'] as Map<String, dynamic>;
+        _accessToken   = t; // Guardar a RAM final
+        _currentUser   = User.fromJson(userData).copyWith(token: t);
+
+        return {
+          'success':            true,
+          'mustChangePassword': _currentUser!.mustChangePassword,
+          'isVerified':         _currentUser!.isVerified,
+          'role':               _currentUser!.role,
+        };
+      } else {
+        final msg = (body['error'] ?? body['message'] ?? 'Código OTP inválido').toString();
+        return {'success': false, 'message': msg};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Error de conexión con el servidor'};
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────
   // Cambiar contraseña → PUT /users/change-password
   // ─────────────────────────────────────────────────────────────────
-  Future<Map<String, dynamic>> changePassword(String newPassword) async {
-    final token = _token;
-    if (token == null) return {'success': false, 'message': 'No autenticado'};
+  Future<Map<String, dynamic>> changePassword(String newPassword, [String? otp]) async {
+    final t = _accessToken;
+    if (t == null) return {'success': false, 'message': 'No autenticado'};
     try {
-      final res = await http.put(
+      final bodyData = <String, dynamic>{'newPassword': newPassword};
+      if (otp != null && otp.isNotEmpty) {
+        bodyData['otp'] = otp;
+      }
+      
+      final res = await _client.put(
         Uri.parse('${ApiConfig.baseUrl}/users/change-password'),
-        headers: ApiConfig.authHeaders(token),
-        body: jsonEncode({'newPassword': newPassword}),
+        headers: ApiConfig.authHeaders(t),
+        body: jsonEncode(bodyData),
       );
       if (res.statusCode == 200) {
-        // Actualizar flag en memoria
         _currentUser = _currentUser?.copyWith(mustChangePassword: false);
         return {'success': true};
       } else {
@@ -118,12 +190,10 @@ class AuthService {
   // type: 'OTP_EMAIL' | 'OTP_SMS'
   // ─────────────────────────────────────────────────────────────────
   Future<Map<String, dynamic>> sendOtp(String email, {String type = 'OTP_EMAIL'}) async {
-    // Si no hay token, el backend no exige auth para OTP de registro si el correo aún no está verificado (o el endpoint unauth debería existir)
-    // Usaremos el mismo endpoint asumiendo que el backend permita unauth si es registro. Si el backend exige token, esto fallará adecuadamente.
-    final token = _token;
-    final headers = token == null ? ApiConfig.jsonHeaders : ApiConfig.authHeaders(token);
+    final t = _accessToken;
+    final headers = t == null ? ApiConfig.jsonHeaders : ApiConfig.authHeaders(t);
     try {
-      final res = await http.post(
+      final res = await _client.post(
         Uri.parse('${ApiConfig.baseUrl}/auth/send-otp'),
         headers: headers,
         body: jsonEncode({'email': email, 'type': type}),
@@ -160,12 +230,12 @@ class AuthService {
   // Verificar OTP → POST /auth/verify-otp
   // ─────────────────────────────────────────────────────────────────
   Future<Map<String, dynamic>> verifyOtp(String otp, {String type = 'OTP_EMAIL'}) async {
-    final token = _token;
-    if (token == null) return {'success': false, 'message': 'No autenticado'};
+    final t = _accessToken;
+    if (t == null) return {'success': false, 'message': 'No autenticado'};
     try {
-      final res = await http.post(
+      final res = await _client.post(
         Uri.parse('${ApiConfig.baseUrl}/auth/verify-otp'),
-        headers: ApiConfig.authHeaders(token),
+        headers: ApiConfig.authHeaders(t),
         body: jsonEncode({'otp': otp, 'type': type}),
       );
       final body = jsonDecode(res.body) as Map<String, dynamic>;
@@ -183,17 +253,24 @@ class AuthService {
   // Cerrar sesión
   // ─────────────────────────────────────────────────────────────────
   Future<void> logout() async {
-    html.window.localStorage.remove('auth_token');
+    try {
+      final t = _accessToken;
+      if (t != null) {
+        await _client.post(
+          Uri.parse('${ApiConfig.baseUrl}/auth/logout'),
+          headers: ApiConfig.authHeaders(t),
+        );
+      }
+    } catch (_) {}
+
+    _accessToken = null;
     _currentUser = null;
   }
 
   Future<void> clearStorage() async {
-    html.window.localStorage.clear();
+    _accessToken = null;
     _currentUser = null;
   }
-
-  /// Expone el token para que otros servicios puedan usarlo
-  String? get token => _token;
 
   bool get isDeveloper =>
       _currentUser?.email?.endsWith('@yada.com') ?? false;

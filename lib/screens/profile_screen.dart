@@ -66,10 +66,13 @@ class _ProfileScreenState extends State<ProfileScreen>
   Future<void> _showChangePasswordDialog() async {
     final newCtrl = TextEditingController();
     final confirmCtrl = TextEditingController();
+    final otpCtrl = TextEditingController(); // Control para el OTP
     final formKey = GlobalKey<FormState>();
     bool obscureNew = true;
     bool obscureConfirm = true;
     bool isSaving = false;
+    bool requiresOtp = false; // Bandera para la fase 2 del cambio
+    final email = _authService.currentUser?.email;
 
     await showDialog(
       context: context,
@@ -88,27 +91,50 @@ class _ProfileScreenState extends State<ProfileScreen>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _dialogPasswordField(
-                  ctrl: newCtrl,
-                  label: 'Nueva contraseña',
-                  obscure: obscureNew,
-                  onToggle: () => setS(() => obscureNew = !obscureNew),
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Requerido';
-                    if (v.length < 6) return 'Mínimo 6 caracteres';
-                    return null;
-                  },
-                ),
-                SizedBox(height: 14),
-                _dialogPasswordField(
-                  ctrl: confirmCtrl,
-                  label: 'Confirmar nueva contraseña',
-                  obscure: obscureConfirm,
-                  onToggle: () =>
-                      setS(() => obscureConfirm = !obscureConfirm),
-                  validator: (v) =>
-                      v != newCtrl.text ? 'Las contraseñas no coinciden' : null,
-                ),
+                if (!requiresOtp) ...[
+                  _dialogPasswordField(
+                    ctrl: newCtrl,
+                    label: 'Nueva contraseña',
+                    obscure: obscureNew,
+                    onToggle: () => setS(() => obscureNew = !obscureNew),
+                    validator: (v) {
+                      if (v == null || v.isEmpty) return 'Requerido';
+                      if (v.length < 6) return 'Mínimo 6 caracteres';
+                      return null;
+                    },
+                  ),
+                  SizedBox(height: 14),
+                  _dialogPasswordField(
+                    ctrl: confirmCtrl,
+                    label: 'Confirmar nueva contraseña',
+                    obscure: obscureConfirm,
+                    onToggle: () =>
+                        setS(() => obscureConfirm = !obscureConfirm),
+                    validator: (v) =>
+                        v != newCtrl.text ? 'Las contraseñas no coinciden' : null,
+                  ),
+                ] else ...[
+                  Text(
+                    'Hemos enviado un código seguro a $email. Escríbelo para autorizar el cambio.',
+                    style: TextStyle(fontSize: 13, color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.8)),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 16),
+                  TextFormField(
+                    controller: otpCtrl,
+                    keyboardType: TextInputType.number,
+                    maxLength: 6,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 24, letterSpacing: 6, fontWeight: FontWeight.bold),
+                    decoration: InputDecoration(
+                      labelText: 'Código MFA',
+                      prefixIcon: Icon(Icons.security),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                    ),
+                    validator: (v) => v!.length < 6 ? 'Requiere 6 dígitos' : null,
+                  ),
+                ],
               ],
             ),
           ),
@@ -130,23 +156,45 @@ class _ProfileScreenState extends State<ProfileScreen>
                       height: 16,
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: Colors.white))
-                  : Icon(Icons.save, size: 18),
-              label: Text(isSaving ? 'Guardando...' : 'Guardar'),
+                  : Icon(requiresOtp ? Icons.check_circle : Icons.send, size: 18),
+              label: Text(isSaving 
+                 ? 'Procesando...' 
+                 : (requiresOtp ? 'Autorizar' : (email != null && email.isNotEmpty ? 'Continuar' : 'Guardar'))),
               onPressed: isSaving
                   ? null
                   : () async {
                       if (!formKey.currentState!.validate()) return;
                       setS(() => isSaving = true);
 
-                      final result = await _authService
-                          .changePassword(newCtrl.text.trim());
+                      // FASE 1: Requerir envío de correo OTP
+                      if (!requiresOtp && email != null && email.isNotEmpty) {
+                        final otpRes = await _authService.sendOtp(email);
+                        if (!mounted) return;
+                        setS(() => isSaving = false);
+                        
+                        if (otpRes['success'] == true) {
+                          setS(() => requiresOtp = true); // Cambia el modal a vista de OTP
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text(otpRes['message'] ?? 'Error al enviar código de seguridad'),
+                            backgroundColor: Colors.red,
+                          ));
+                        }
+                        return; // Frenamos y esperamos el input
+                      }
+
+                      // FASE 2: Validar API y Modificar Contraseña
+                      final result = await _authService.changePassword(
+                        newCtrl.text.trim(),
+                        requiresOtp ? otpCtrl.text.trim() : null
+                      );
 
                       if (!mounted) return;
 
                       if (result['success'] == true) {
                         Navigator.pop(ctx);
                         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          content: Text('Contraseña actualizada correctamente'),
+                          content: Text('Contraseña actualizada correctamente 😁'),
                           backgroundColor: Colors.green,
                           behavior: SnackBarBehavior.floating,
                           shape: RoundedRectangleBorder(
@@ -170,6 +218,7 @@ class _ProfileScreenState extends State<ProfileScreen>
 
     newCtrl.dispose();
     confirmCtrl.dispose();
+    otpCtrl.dispose();
   }
 
   Widget _dialogPasswordField({

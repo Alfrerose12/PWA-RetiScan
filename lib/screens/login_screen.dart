@@ -93,35 +93,11 @@ class _LoginScreenState extends State<LoginScreen>
       setState(() => _isLoading = false);
 
       if (result['success'] == true) {
-        if (result['mustChangePassword'] == true) {
-          // Médico con contraseña temporal → debe cambiarla antes de entrar
-          Navigator.pushReplacement(
-            context,
-            PageRouteBuilder(
-              pageBuilder: (context, animation, secondaryAnimation) =>
-                  ChangePasswordScreen(),
-              transitionsBuilder:
-                  (context, animation, secondaryAnimation, child) {
-                return FadeTransition(opacity: animation, child: child);
-              },
-              transitionDuration: Duration(milliseconds: 400),
-            ),
-          );
-        } else {
-          // Login normal → pantalla de carga animada
-          Navigator.pushReplacement(
-            context,
-            PageRouteBuilder(
-              pageBuilder: (context, animation, secondaryAnimation) =>
-                  LoginLoadingScreen(),
-              transitionsBuilder:
-                  (context, animation, secondaryAnimation, child) {
-                return FadeTransition(opacity: animation, child: child);
-              },
-              transitionDuration: Duration(milliseconds: 400),
-            ),
-          );
+        if (result['requires2FA'] == true) {
+          _showMfaDialog(result['userId'], result['message']);
+          return;
         }
+        _navigateAfterLogin(result);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -134,6 +110,114 @@ class _LoginScreenState extends State<LoginScreen>
         );
       }
     }
+  }
+
+  void _navigateAfterLogin(Map<String, dynamic> result) {
+    if (result['mustChangePassword'] == true) {
+      // Médico con contraseña temporal → debe cambiarla antes de entrar
+      Navigator.pushReplacement(
+        context,
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              ChangePasswordScreen(),
+          transitionsBuilder:
+              (context, animation, secondaryAnimation, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+          transitionDuration: Duration(milliseconds: 400),
+        ),
+      );
+    } else {
+      // Login normal → pantalla de carga animada
+      Navigator.pushReplacement(
+        context,
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              LoginLoadingScreen(),
+          transitionsBuilder:
+              (context, animation, secondaryAnimation, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+          transitionDuration: Duration(milliseconds: 400),
+        ),
+      );
+    }
+  }
+
+  void _showMfaDialog(String userId, String message) {
+    final otpController = TextEditingController();
+    bool isVerifying = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return AlertDialog(
+              backgroundColor: Color(0xFF2D385E),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: Text('Verificación en 2 Pasos', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(message, style: TextStyle(color: Colors.white.withOpacity(0.9))),
+                  SizedBox(height: 24),
+                  TextField(
+                    controller: otpController,
+                    keyboardType: TextInputType.number,
+                    style: TextStyle(color: Colors.white, fontSize: 32, letterSpacing: 8, fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center,
+                    maxLength: 6,
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: Colors.white.withOpacity(0.1),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                      counterStyle: TextStyle(color: Colors.white54),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isVerifying ? null : () => Navigator.pop(context),
+                  child: Text('Cancelar', style: TextStyle(color: Colors.white70)),
+                ),
+                ElevatedButton(
+                  onPressed: isVerifying ? null : () async {
+                    if (otpController.text.length < 6) return;
+                    setModalState(() => isVerifying = true);
+                    final res = await _authService.verifyLoginOtp(userId, otpController.text);
+                    if (!mounted) return;
+                    setModalState(() => isVerifying = false);
+                    if (res['success'] == true) {
+                      Navigator.pop(context); // Cerrar Modal
+                      _navigateAfterLogin(res); // Navegar a Home
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(res['message'] ?? 'Error desconocido'),
+                          backgroundColor: Colors.red,
+                          behavior: SnackBarBehavior.floating,
+                        )
+                      );
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0xFF2563EB),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  ),
+                  child: isVerifying 
+                    ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) 
+                    : Text('Verificar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            );
+          }
+        );
+      }
+    );
   }
 
   @override

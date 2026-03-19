@@ -10,14 +10,6 @@ class PatientService {
   factory PatientService() => _instance;
   PatientService._internal();
 
-  final AuthService _auth = AuthService();
-
-  Map<String, String> get _headers {
-    final t = _auth.token;
-    if (t == null) throw Exception('No autenticado');
-    return ApiConfig.authHeaders(t);
-  }
-
   // ─────────────────────────────────────────────────────────────────
   // Helpers
   // ─────────────────────────────────────────────────────────────────
@@ -47,10 +39,7 @@ class PatientService {
   // MEDICO: Listar pacientes → GET /patients
   // ─────────────────────────────────────────────────────────────────
   Future<List<Patient>> getPatients() async {
-    final res = await http.get(
-      Uri.parse('${ApiConfig.baseUrl}/patients'),
-      headers: _headers,
-    );
+    final res = await ApiConfig.get('/patients');
     if (res.statusCode == 200) {
       final decoded = jsonDecode(res.body);
       List<dynamic> list;
@@ -72,10 +61,7 @@ class PatientService {
   // MEDICO: Obtener paciente → GET /patients/:id
   // ─────────────────────────────────────────────────────────────────
   Future<Patient> getPatient(String id) async {
-    final res = await http.get(
-      Uri.parse('${ApiConfig.baseUrl}/patients/$id'),
-      headers: _headers,
-    );
+    final res = await ApiConfig.get('/patients/$id');
     if (res.statusCode == 200) return _parsePatient(res.body);
     throw _apiError(res);
   }
@@ -97,11 +83,7 @@ class PatientService {
         'maternalSurname': maternalSurname,
     };
 
-    final res = await http.post(
-      Uri.parse('${ApiConfig.baseUrl}/patients'),
-      headers: _headers,
-      body: jsonEncode(body),
-    );
+    final res = await ApiConfig.post('/patients', body: body);
 
     if (res.statusCode == 201 || res.statusCode == 200) {
       final decoded = jsonDecode(res.body) as Map<String, dynamic>;
@@ -121,11 +103,7 @@ class PatientService {
   // MEDICO: Actualizar paciente → PUT /patients/:id
   // ─────────────────────────────────────────────────────────────────
   Future<Patient> updatePatient(String id, Map<String, dynamic> data) async {
-    final res = await http.put(
-      Uri.parse('${ApiConfig.baseUrl}/patients/$id'),
-      headers: _headers,
-      body: jsonEncode(data),
-    );
+    final res = await ApiConfig.put('/patients/$id', body: data);
     if (res.statusCode == 200) return _parsePatient(res.body);
     throw _apiError(res);
   }
@@ -134,10 +112,7 @@ class PatientService {
   // MEDICO: Eliminar paciente → DELETE /patients/:id
   // ─────────────────────────────────────────────────────────────────
   Future<void> deletePatient(String id) async {
-    final res = await http.delete(
-      Uri.parse('${ApiConfig.baseUrl}/patients/$id'),
-      headers: _headers,
-    );
+    final res = await ApiConfig.delete('/patients/$id');
     if (res.statusCode != 200 && res.statusCode != 204) {
       throw _apiError(res);
     }
@@ -147,10 +122,7 @@ class PatientService {
   // PACIENTE: Ver mi expediente → GET /patients/me
   // ─────────────────────────────────────────────────────────────────
   Future<Patient> getMyRecord() async {
-    final res = await http.get(
-      Uri.parse('${ApiConfig.baseUrl}/patients/me'),
-      headers: _headers,
-    );
+    final res = await ApiConfig.get('/patients/me');
     if (res.statusCode == 200) return _parsePatient(res.body);
     throw _apiError(res);
   }
@@ -171,11 +143,7 @@ class PatientService {
     if (email     != null) body['email']     = email;
     if (phone     != null) body['phone']     = phone;
 
-    final res = await http.patch(
-      Uri.parse('${ApiConfig.baseUrl}/patients/me'),
-      headers: _headers,
-      body: jsonEncode(body),
-    );
+    final res = await ApiConfig.patch('/patients/me', body: body);
     if (res.statusCode == 200) return _parsePatient(res.body);
     throw _apiError(res);
   }

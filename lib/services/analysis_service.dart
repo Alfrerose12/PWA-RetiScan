@@ -10,23 +10,9 @@ class AnalysisService {
   factory AnalysisService() => _instance;
   AnalysisService._internal();
 
-  final AuthService _auth = AuthService();
-
-  String? get _token => _auth.currentUser?.token;
-
-  Map<String, String> get _headers {
-    final t = _token;
-    if (t == null) throw Exception('No autenticado');
-    return ApiConfig.authHeaders(t);
-  }
-
   /// POST /analyses — crear análisis, retorna 202 con status PENDING
   Future<Analysis> createAnalysis(String patientId) async {
-    final res = await http.post(
-      Uri.parse('${ApiConfig.baseUrl}/analyses'),
-      headers: _headers,
-      body: jsonEncode({'patientId': patientId}),
-    );
+    final res = await ApiConfig.post('/analyses', body: {'patientId': patientId});
     if (res.statusCode == 202 || res.statusCode == 201 || res.statusCode == 200) {
       return Analysis.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
     }
@@ -35,10 +21,7 @@ class AnalysisService {
 
   /// GET /analyses/:id — obtener análisis (usar para polling)
   Future<Analysis> getAnalysis(String id) async {
-    final res = await http.get(
-      Uri.parse('${ApiConfig.baseUrl}/analyses/$id'),
-      headers: _headers,
-    );
+    final res = await ApiConfig.get('/analyses/$id');
     if (res.statusCode == 200) {
       return Analysis.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
     }
@@ -47,10 +30,7 @@ class AnalysisService {
 
   /// GET /analyses/patient/:patientId — análisis de un paciente
   Future<List<Analysis>> getAnalysesByPatient(String patientId) async {
-    final res = await http.get(
-      Uri.parse('${ApiConfig.baseUrl}/analyses/patient/$patientId'),
-      headers: _headers,
-    );
+    final res = await ApiConfig.get('/analyses/patient/$patientId');
     if (res.statusCode == 200) {
       final list = jsonDecode(res.body) as List<dynamic>;
       return list.map((e) => Analysis.fromJson(e as Map<String, dynamic>)).toList();
@@ -60,10 +40,7 @@ class AnalysisService {
 
   /// GET /analyses/:id/logs — logs de procesamiento IA
   Future<List<String>> getLogs(String analysisId) async {
-    final res = await http.get(
-      Uri.parse('${ApiConfig.baseUrl}/analyses/$analysisId/logs'),
-      headers: _headers,
-    );
+    final res = await ApiConfig.get('/analyses/$analysisId/logs');
     if (res.statusCode == 200) {
       final body = jsonDecode(res.body);
       if (body is List) {
@@ -76,10 +53,7 @@ class AnalysisService {
 
   /// DELETE /analyses/:id
   Future<void> deleteAnalysis(String id) async {
-    final res = await http.delete(
-      Uri.parse('${ApiConfig.baseUrl}/analyses/$id'),
-      headers: _headers,
-    );
+    final res = await ApiConfig.delete('/analyses/$id');
     if (res.statusCode != 200 && res.statusCode != 204) {
       throw _apiError(res);
     }
