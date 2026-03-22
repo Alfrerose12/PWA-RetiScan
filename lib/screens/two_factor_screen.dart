@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:another_flushbar/flushbar.dart';
 import 'dart:math' as math;
 import 'dart:async';
 import 'login_screen.dart';
@@ -131,12 +132,22 @@ class _TwoFactorScreenState extends State<TwoFactorScreen>
     final entered = _controllers.map((c) => c.text).join();
     if (entered.length < 6) return;
     if (_codeExpired) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('El código ha expirado. Solicita uno nuevo.'),
-        backgroundColor: Colors.red.shade700,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ));
+      Flushbar(
+        title: 'Error',
+        message: 'El código ha expirado. Solicita uno nuevo.',
+        icon: Icon(Icons.error_outline, size: 28, color: Colors.redAccent),
+        backgroundColor: Color(0xFF1E1E2E),
+        borderColor: Colors.redAccent.withOpacity(0.5),
+        borderWidth: 1.5,
+        borderRadius: BorderRadius.circular(12),
+        margin: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        flushbarPosition: FlushbarPosition.TOP,
+        duration: Duration(seconds: 4),
+        boxShadows: [BoxShadow(color: Colors.redAccent.withOpacity(0.2), blurRadius: 12)],
+        titleColor: Colors.white,
+        messageColor: Colors.white70,
+      ).show(context);
       return;
     }
 
@@ -151,13 +162,22 @@ class _TwoFactorScreenState extends State<TwoFactorScreen>
       _countdownTimer?.cancel();
       if (widget.afterRegister) {
         // Verificación de registro exitosa → volver al login con mensaje
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('¡Cuenta verificada! Ya puedes iniciar sesión.'),
-          backgroundColor: Colors.green.shade700,
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ));
+        Flushbar(
+          title: 'Éxito',
+          message: '¡Cuenta verificada! Ya puedes iniciar sesión.',
+          icon: Icon(Icons.check_circle, size: 28, color: Colors.greenAccent),
+          backgroundColor: Color(0xFF1E1E2E),
+          borderColor: Colors.greenAccent.withOpacity(0.5),
+          borderWidth: 1.5,
+          borderRadius: BorderRadius.circular(12),
+          margin: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          flushbarPosition: FlushbarPosition.TOP,
+          duration: Duration(seconds: 4),
+          boxShadows: [BoxShadow(color: Colors.greenAccent.withOpacity(0.2), blurRadius: 12)],
+          titleColor: Colors.white,
+          messageColor: Colors.white70,
+        ).show(context);
         Navigator.pushAndRemoveUntil(
           context,
           PageRouteBuilder(
@@ -189,12 +209,22 @@ class _TwoFactorScreenState extends State<TwoFactorScreen>
     } else {
       setState(() => _isVerifying = false);
       _shakeController.forward(from: 0);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Código incorrecto. Inténtalo de nuevo.'),
-        backgroundColor: Colors.red.shade700,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ));
+      Flushbar(
+        title: 'Error',
+        message: 'Código incorrecto. Inténtalo de nuevo.',
+        icon: Icon(Icons.error_outline, size: 28, color: Colors.redAccent),
+        backgroundColor: Color(0xFF1E1E2E),
+        borderColor: Colors.redAccent.withOpacity(0.5),
+        borderWidth: 1.5,
+        borderRadius: BorderRadius.circular(12),
+        margin: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        flushbarPosition: FlushbarPosition.TOP,
+        duration: Duration(seconds: 4),
+        boxShadows: [BoxShadow(color: Colors.redAccent.withOpacity(0.2), blurRadius: 12)],
+        titleColor: Colors.white,
+        messageColor: Colors.white70,
+      ).show(context);
       for (var c in _controllers) {
         c.clear();
       }

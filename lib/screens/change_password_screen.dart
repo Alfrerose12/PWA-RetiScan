@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:another_flushbar/flushbar.dart';
 import 'dart:math' as math;
 import 'login_loading_screen.dart';
 import '../widgets/glassmorphic_card.dart';
@@ -66,12 +67,22 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen>
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (_passwordController.text != _confirmController.text) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Las contraseñas no coinciden'),
-        backgroundColor: Colors.red,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ));
+      Flushbar(
+        title: 'Error',
+        message: 'Las contraseñas no coinciden',
+        icon: Icon(Icons.error_outline, size: 28, color: Colors.redAccent),
+        backgroundColor: Color(0xFF1E1E2E),
+        borderColor: Colors.redAccent.withOpacity(0.5),
+        borderWidth: 1.5,
+        borderRadius: BorderRadius.circular(12),
+        margin: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        flushbarPosition: FlushbarPosition.TOP,
+        duration: Duration(seconds: 4),
+        boxShadows: [BoxShadow(color: Colors.redAccent.withOpacity(0.2), blurRadius: 12)],
+        titleColor: Colors.white,
+        messageColor: Colors.white70,
+      ).show(context);
       return;
     }
 
@@ -95,12 +106,22 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen>
         ),
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(result['message'] ?? 'Error al cambiar la contraseña'),
-        backgroundColor: Colors.red,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ));
+      Flushbar(
+        title: 'Error',
+        message: result['message'] ?? 'Error al cambiar la contraseña',
+        icon: Icon(Icons.error_outline, size: 28, color: Colors.redAccent),
+        backgroundColor: Color(0xFF1E1E2E),
+        borderColor: Colors.redAccent.withOpacity(0.5),
+        borderWidth: 1.5,
+        borderRadius: BorderRadius.circular(12),
+        margin: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        flushbarPosition: FlushbarPosition.TOP,
+        duration: Duration(seconds: 4),
+        boxShadows: [BoxShadow(color: Colors.redAccent.withOpacity(0.2), blurRadius: 12)],
+        titleColor: Colors.white,
+        messageColor: Colors.white70,
+      ).show(context);
     }
   }
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:another_flushbar/flushbar.dart';
 import '../widgets/responsive_wrapper.dart';
 import '../services/auth_service.dart';
 import '../services/patient_service.dart';
@@ -175,10 +176,22 @@ class _ProfileScreenState extends State<ProfileScreen>
                         if (otpRes['success'] == true) {
                           setS(() => requiresOtp = true); // Cambia el modal a vista de OTP
                         } else {
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                            content: Text(otpRes['message'] ?? 'Error al enviar código de seguridad'),
-                            backgroundColor: Colors.red,
-                          ));
+                          Flushbar(
+                            title: 'Error',
+                            message: otpRes['message'] ?? 'Error al enviar código de seguridad',
+                            icon: Icon(Icons.error_outline, size: 28, color: Colors.redAccent),
+                            backgroundColor: Color(0xFF1E1E2E),
+                            borderColor: Colors.redAccent.withOpacity(0.5),
+                            borderWidth: 1.5,
+                            borderRadius: BorderRadius.circular(12),
+                            margin: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                            flushbarPosition: FlushbarPosition.TOP,
+                            duration: Duration(seconds: 4),
+                            boxShadows: [BoxShadow(color: Colors.redAccent.withOpacity(0.2), blurRadius: 12)],
+                            titleColor: Colors.white,
+                            messageColor: Colors.white70,
+                          ).show(context);
                         }
                         return; // Frenamos y esperamos el input
                       }
@@ -193,21 +206,40 @@ class _ProfileScreenState extends State<ProfileScreen>
 
                       if (result['success'] == true) {
                         Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          content: Text('Contraseña actualizada correctamente 😁'),
-                          backgroundColor: Colors.green,
-                          behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10)),
-                        ));
+                        Flushbar(
+                          title: 'Éxito',
+                          message: 'Contraseña actualizada correctamente',
+                          icon: Icon(Icons.check_circle, size: 28, color: Colors.greenAccent),
+                          backgroundColor: Color(0xFF1E1E2E),
+                          borderColor: Colors.greenAccent.withOpacity(0.5),
+                          borderWidth: 1.5,
+                          borderRadius: BorderRadius.circular(12),
+                          margin: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                          flushbarPosition: FlushbarPosition.TOP,
+                          duration: Duration(seconds: 4),
+                          boxShadows: [BoxShadow(color: Colors.greenAccent.withOpacity(0.2), blurRadius: 12)],
+                          titleColor: Colors.white,
+                          messageColor: Colors.white70,
+                        ).show(context);
                       } else {
                         setS(() => isSaving = false);
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          content: Text(
-                              result['message'] ?? 'Error al cambiar contraseña'),
-                          backgroundColor: Colors.red,
-                          behavior: SnackBarBehavior.floating,
-                        ));
+                        Flushbar(
+                          title: 'Error',
+                          message: result['message'] ?? 'Error al cambiar contraseña',
+                          icon: Icon(Icons.error_outline, size: 28, color: Colors.redAccent),
+                          backgroundColor: Color(0xFF1E1E2E),
+                          borderColor: Colors.redAccent.withOpacity(0.5),
+                          borderWidth: 1.5,
+                          borderRadius: BorderRadius.circular(12),
+                          margin: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                          flushbarPosition: FlushbarPosition.TOP,
+                          duration: Duration(seconds: 4),
+                          boxShadows: [BoxShadow(color: Colors.redAccent.withOpacity(0.2), blurRadius: 12)],
+                          titleColor: Colors.white,
+                          messageColor: Colors.white70,
+                        ).show(context);
                       }
                     },
             ),

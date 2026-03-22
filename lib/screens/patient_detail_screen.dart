@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:another_flushbar/flushbar.dart';
 import '../models/patient.dart';
 import '../services/patient_service.dart';
 
@@ -82,15 +83,41 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
   }
 
   void _showSnack(String msg, {bool isError = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        backgroundColor: isError ? Colors.red : Color(0xFF2563EB),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        duration: Duration(seconds: 2),
-      ),
-    );
+    if (isError) {
+      Flushbar(
+        title: 'Error',
+        message: msg,
+        icon: Icon(Icons.error_outline, size: 28, color: Colors.redAccent),
+        backgroundColor: Color(0xFF1E1E2E),
+        borderColor: Colors.redAccent.withOpacity(0.5),
+        borderWidth: 1.5,
+        borderRadius: BorderRadius.circular(12),
+        margin: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        flushbarPosition: FlushbarPosition.TOP,
+        duration: Duration(seconds: 4),
+        boxShadows: [BoxShadow(color: Colors.redAccent.withOpacity(0.2), blurRadius: 12)],
+        titleColor: Colors.white,
+        messageColor: Colors.white70,
+      ).show(context);
+    } else {
+      Flushbar(
+        title: 'Éxito',
+        message: msg,
+        icon: Icon(Icons.check_circle, size: 28, color: Colors.greenAccent),
+        backgroundColor: Color(0xFF1E1E2E),
+        borderColor: Colors.greenAccent.withOpacity(0.5),
+        borderWidth: 1.5,
+        borderRadius: BorderRadius.circular(12),
+        margin: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        flushbarPosition: FlushbarPosition.TOP,
+        duration: Duration(seconds: 4),
+        boxShadows: [BoxShadow(color: Colors.greenAccent.withOpacity(0.2), blurRadius: 12)],
+        titleColor: Colors.white,
+        messageColor: Colors.white70,
+      ).show(context);
+    }
   }
 
   String _formatDate(DateTime? date) {

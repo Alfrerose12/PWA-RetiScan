@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'dart:math' as math;
+import 'package:another_flushbar/flushbar.dart';
 import '../services/patient_service.dart';
 import '../models/patient.dart';
 import '../services/theme_service.dart';
@@ -23,8 +25,15 @@ class _PatientManagementScreenState extends State<PatientManagementScreen> {
   String? _tempUsername;
   String? _tempPassword;
   
-  List<Patient> _patients = [];
+  List<Patient> _allPatients = [];
+  List<Patient> _filteredPatients = [];
   bool _isLoadingPatients = true;
+
+  // Búsqueda y Paginación
+  String _searchQuery = '';
+  int _currentPage = 1;
+  final int _itemsPerPage = 10;
+  final _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -37,21 +46,80 @@ class _PatientManagementScreenState extends State<PatientManagementScreen> {
     try {
       final list = await _patientService.getPatients();
       setState(() {
-        _patients = list;
+        _allPatients = list;
+        _filterAndPaginatePatients();
         _isLoadingPatients = false;
       });
     } catch (e) {
       setState(() => _isLoadingPatients = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Error al cargar pacientes: $e'),
-        backgroundColor: Colors.red,
-      ));
+      _showErrorFlushbar('Error al cargar pacientes: $e');
     }
+  }
+
+  void _filterAndPaginatePatients() {
+    List<Patient> filtered = _allPatients;
+    if (_searchQuery.isNotEmpty) {
+      final q = _searchQuery.toLowerCase();
+      filtered = _allPatients.where((p) {
+        final fullName = p.fullName.toLowerCase();
+        final email = (p.email ?? '').toLowerCase();
+        return fullName.contains(q) || email.contains(q);
+      }).toList();
+    }
+    setState(() {
+      _filteredPatients = filtered;
+      // Reset to page 1 if query changes to avoid empty pages
+      final totalPages = (_filteredPatients.length / _itemsPerPage).ceil();
+      if (_currentPage > totalPages && totalPages > 0) {
+        _currentPage = totalPages;
+      } else if (totalPages == 0) {
+        _currentPage = 1;
+      }
+    });
+  }
+
+  void _showSuccessFlushbar(String message) {
+    Flushbar(
+      title: 'Éxito',
+      message: message,
+      icon: Icon(Icons.check_circle, size: 28, color: Colors.greenAccent),
+      backgroundColor: Color(0xFF1E1E2E),
+      borderColor: Colors.greenAccent.withOpacity(0.5),
+      borderWidth: 1.5,
+      borderRadius: BorderRadius.circular(12),
+      margin: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      flushbarPosition: FlushbarPosition.TOP,
+      duration: Duration(seconds: 4),
+      boxShadows: [BoxShadow(color: Colors.greenAccent.withOpacity(0.2), blurRadius: 12)],
+      titleColor: Colors.white,
+      messageColor: Colors.white70,
+    ).show(context);
+  }
+
+  void _showErrorFlushbar(String message) {
+    Flushbar(
+      title: 'Error',
+      message: message,
+      icon: Icon(Icons.error_outline, size: 28, color: Colors.redAccent),
+      backgroundColor: Color(0xFF1E1E2E),
+      borderColor: Colors.redAccent.withOpacity(0.5),
+      borderWidth: 1.5,
+      borderRadius: BorderRadius.circular(12),
+      margin: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      flushbarPosition: FlushbarPosition.TOP,
+      duration: Duration(seconds: 4),
+      boxShadows: [BoxShadow(color: Colors.redAccent.withOpacity(0.2), blurRadius: 12)],
+      titleColor: Colors.white,
+      messageColor: Colors.white70,
+    ).show(context);
   }
 
   @override
   void dispose() {
     _nameController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -84,19 +152,13 @@ class _PatientManagementScreenState extends State<PatientManagementScreen> {
       });
 
       _nameController.clear();
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Paciente creado con éxito.'),
-        backgroundColor: Colors.green,
-      ));
+      _showSuccessFlushbar('Paciente creado con éxito.');
       
       // Recargar lista
       _loadPatients();
     } catch (e) {
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(e.toString().replaceAll('Exception: ', '')),
-        backgroundColor: Colors.red,
-      ));
+      _showErrorFlushbar(e.toString().replaceAll('Exception: ', ''));
     }
   }
 
@@ -210,7 +272,7 @@ class _PatientManagementScreenState extends State<PatientManagementScreen> {
               children: [
                 _buildStatsHeader(isDesktop),
                 _buildFilterRow(isDesktop),
-                Text('Pacientes (${_patients.length})', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)),
+                Text('Pacientes (${_filteredPatients.length})', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)),
                 SizedBox(height: 16),
                 _buildPatientesTable(isDesktop),
               ],
@@ -227,9 +289,9 @@ class _PatientManagementScreenState extends State<PatientManagementScreen> {
     final primaryColor = Theme.of(context).brightness == Brightness.dark 
         ? Theme.of(context).colorScheme.secondary 
         : Theme.of(context).colorScheme.primary;
-    int totalPacientes = _patients.length;
-    int totalAnalisis = _patients.fold(0, (sum, p) => sum + p.totalAnalyses);
-    // Asumiremos que 'Estado' no está en el modelo todavía, simulamos.
+    int totalPacientes = _allPatients.length;
+    int totalAnalisis = _allPatients.fold(0, (sum, p) => sum + p.totalAnalyses);
+    // Simulación de estados para llenar el dashboard
     int estadoNormal = totalPacientes > 0 ? (totalPacientes * 0.8).round() : 0;
     int requierenAtencion = totalPacientes - estadoNormal;
 
@@ -282,11 +344,30 @@ class _PatientManagementScreenState extends State<PatientManagementScreen> {
           border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.2)),
         ),
         child: TextField(
+          controller: _searchController,
+          onChanged: (val) {
+            setState(() {
+              _searchQuery = val;
+              _filterAndPaginatePatients();
+            });
+          },
           style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color),
           decoration: InputDecoration(
             hintText: 'Buscar paciente por nombre o email...',
             hintStyle: TextStyle(color: textSecondary, fontSize: 14),
             prefixIcon: Icon(Icons.search, color: textSecondary),
+            suffixIcon: _searchQuery.isNotEmpty 
+              ? IconButton(
+                  icon: Icon(Icons.clear, color: textSecondary, size: 20),
+                  onPressed: () {
+                    _searchController.clear();
+                    setState(() {
+                      _searchQuery = '';
+                      _filterAndPaginatePatients();
+                    });
+                  },
+                )
+              : null,
             border: InputBorder.none,
             isDense: true,
             contentPadding: EdgeInsets.symmetric(vertical: 14),
@@ -301,24 +382,58 @@ class _PatientManagementScreenState extends State<PatientManagementScreen> {
       return Padding(padding: EdgeInsets.all(48), child: Center(child: CircularProgressIndicator()));
     }
     
-    if (_patients.isEmpty) {
-      return Padding(padding: EdgeInsets.all(48), child: Center(child: Text('Aún no tienes pacientes.', style: TextStyle(color: Colors.grey))));
+    if (_filteredPatients.isEmpty) {
+      return Padding(padding: EdgeInsets.all(48), child: Center(child: Text('No hay pacientes que coincidan con la búsqueda.', style: TextStyle(color: Colors.grey))));
     }
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardBgColor = isDark ? Color(0xFF23325B) : (Theme.of(context).cardTheme.color ?? Theme.of(context).colorScheme.surface);
     final primaryColor = isDark ? Theme.of(context).colorScheme.secondary : Theme.of(context).colorScheme.primary;
 
+    // Calcular Paginación
+    final totalFiltered = _filteredPatients.length;
+    final totalPages = (totalFiltered / _itemsPerPage).ceil();
+    final startIndex = (_currentPage - 1) * _itemsPerPage;
+    final endIndex = math.min(startIndex + _itemsPerPage, totalFiltered);
+    final pagedPatients = _filteredPatients.sublist(startIndex, endIndex);
+
+    Widget buildPaginationControls() {
+      if (totalPages <= 1) return SizedBox.shrink();
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            IconButton(
+              icon: Icon(Icons.chevron_left),
+              onPressed: _currentPage > 1 ? () {
+                setState(() => _currentPage--);
+              } : null,
+            ),
+            Text('Página $_currentPage de $totalPages', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Theme.of(context).textTheme.bodyMedium?.color)),
+            IconButton(
+              icon: Icon(Icons.chevron_right),
+              onPressed: _currentPage < totalPages ? () {
+                setState(() => _currentPage++);
+              } : null,
+            ),
+          ],
+        ),
+      );
+    }
+
     if (!isDesktop) {
       // Vista móvil: Lista de tarjetas
-      return ListView.separated(
-        shrinkWrap: true,
-        physics: NeverScrollableScrollPhysics(),
-        itemCount: _patients.length,
-        separatorBuilder: (_, __) => SizedBox(height: 12),
-        itemBuilder: (context, index) {
-          final patient = _patients[index];
-          // Simulación de valores
+      return Column(
+        children: [
+          ListView.separated(
+            shrinkWrap: true,
+            physics: NeverScrollableScrollPhysics(),
+            itemCount: pagedPatients.length,
+            separatorBuilder: (_, __) => SizedBox(height: 12),
+            itemBuilder: (context, index) {
+              final patient = pagedPatients[index];
+              // Simulación de valores
           String estado = "Normal";
           Color estadoColor = Colors.green;
           if (index % 3 == 1) { estado = "Leve"; estadoColor = Colors.orange; }
@@ -378,6 +493,9 @@ class _PatientManagementScreenState extends State<PatientManagementScreen> {
             ),
           );
         },
+          ),
+          buildPaginationControls(),
+        ],
       );
     }
 
@@ -386,17 +504,19 @@ class _PatientManagementScreenState extends State<PatientManagementScreen> {
     final textSecondary = Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7) ?? Colors.grey;
     final headerStyle = TextStyle(color: textPrimary, fontWeight: FontWeight.bold, fontSize: 13);
     
-    return Container(
-      decoration: BoxDecoration(
-        color: cardBgColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.1)),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: Offset(0, 2))
-        ],
-      ),
-      width: double.infinity,
-      child: ClipRRect(
+    return Column(
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: cardBgColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.1)),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: Offset(0, 2))
+            ],
+          ),
+          width: double.infinity,
+          child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
         child: Theme(
           data: Theme.of(context).copyWith(dividerColor: Theme.of(context).dividerColor.withOpacity(0.1)),
@@ -414,7 +534,7 @@ class _PatientManagementScreenState extends State<PatientManagementScreen> {
               DataColumn(label: Text('Estado', style: headerStyle)),
               DataColumn(label: Text('Última Visita', style: headerStyle)),
             ],
-            rows: _patients.asMap().entries.map((entry) {
+            rows: pagedPatients.asMap().entries.map((entry) {
               final index = entry.key;
               final patient = entry.value;
               final isOdd = index % 2 == 1;
@@ -459,6 +579,9 @@ class _PatientManagementScreenState extends State<PatientManagementScreen> {
           ),
         ),
       ),
+        ),
+        buildPaginationControls(),
+      ],
     );
   }
 
@@ -566,6 +689,24 @@ class _PatientManagementScreenState extends State<PatientManagementScreen> {
                         Text('Contraseña: $_tempPassword', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: textPrimary)),
                         SizedBox(height: 16),
                         Text('Proporciona estos datos al paciente para que inicie sesión.', style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.cyanAccent.withOpacity(0.7) : Colors.cyan.shade800, fontSize: 13)),
+                        SizedBox(height: 20),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            icon: Icon(Icons.copy, size: 18),
+                            label: Text('Copiar Credenciales'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.cyanAccent : Colors.cyan.shade700,
+                              side: BorderSide(color: Theme.of(context).brightness == Brightness.dark ? Colors.cyanAccent.withOpacity(0.5) : Colors.cyan.shade700.withOpacity(0.5)),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              padding: EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            onPressed: () {
+                              Clipboard.setData(ClipboardData(text: 'Hola, tus credenciales para acceder a RetiScan son:\n\nUsuario: $_tempUsername\nContraseña: $_tempPassword\n\nPor favor inicia sesión para completar tu perfil y cambiar tu contraseña.'));
+                              _showSuccessFlushbar('Credenciales copiadas al portapapeles');
+                            },
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -945,21 +1086,15 @@ class _PatientManagementScreenState extends State<PatientManagementScreen> {
                                       await _loadPatients();
                                       if (!context.mounted) return;
                                       Navigator.of(context).pop();
-                                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                        content: Text('Paciente actualizado correctamente', style: TextStyle(color: Colors.white)),
-                                        backgroundColor: Colors.green,
-                                      ));
+                                      _showSuccessFlushbar('Paciente actualizado correctamente');
                                       
                                       try {
-                                        final modifiedPatient = _patients.firstWhere((p) => p.id == patient.id);
+                                        final modifiedPatient = _allPatients.firstWhere((p) => p.id == patient.id);
                                         _showPatientDetailsModal(modifiedPatient);
                                       } catch (_) {}
                                     } catch (e) {
                                       if (!context.mounted) return;
-                                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                        content: Text('Error: ${e.toString().replaceAll('Exception: ', '')}', style: TextStyle(color: Colors.white)),
-                                        backgroundColor: Colors.red,
-                                      ));
+                                      _showErrorFlushbar('Error: ${e.toString().replaceAll('Exception: ', '')}');
                                       setStateModal(() => isSaving = false);
                                     }
                                   },

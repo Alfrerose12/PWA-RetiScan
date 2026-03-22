@@ -388,6 +388,11 @@ class _HomeContentState extends State<HomeContent>
   
   String? _realName;
   bool _isLoadingName = false;
+  
+  // Pacientes recientes reales (solo para el médico)
+  List<dynamic> _recentPatients = [];
+  bool _isLoadingPatients = false;
+  int _totalPatientsCount = 0;
 
   @override
   void initState() {
@@ -416,6 +421,28 @@ class _HomeContentState extends State<HomeContent>
 
     _controller.forward();
     _fetchRealName();
+    // Si es médico, cargar los últimos 3 pacientes reales
+    if (_authService.isDoctor) {
+      _fetchRecentPatients();
+    }
+  }
+
+  Future<void> _fetchRecentPatients() async {
+    if (mounted) setState(() => _isLoadingPatients = true);
+    try {
+      final patients = await PatientService().getPatients();
+      if (mounted) {
+        setState(() {
+          // Tomar solo los últimos 3 (el endpoint ya los ordena por fecha de creación)
+          _totalPatientsCount = patients.length;
+          _recentPatients = patients.take(3).toList();
+        });
+      }
+    } catch (e) {
+      debugPrint('Error cargando pacientes recientes: $e');
+    } finally {
+      if (mounted) setState(() => _isLoadingPatients = false);
+    }
   }
 
   Future<void> _fetchRealName() async {
@@ -487,9 +514,24 @@ class _HomeContentState extends State<HomeContent>
                 if (isDoctor) ...[
                   _animated(3, _buildSectionTitle('Pacientes Recientes')),
                   SizedBox(height: 12),
-                  _animated(4, _buildPatientCard('Juan Pérez', 'Normal', '15 Nov 2024')),
-                  _animated(4, _buildPatientCard('María García', 'Revisión', '14 Nov 2024')),
-                  _animated(4, _buildPatientCard('Carlos López', 'Leve', '13 Nov 2024')),
+                  if (_isLoadingPatients)
+                    _animated(4, Center(child: Padding(
+                      padding: EdgeInsets.all(20),
+                      child: CircularProgressIndicator(),
+                    )))
+                  else if (_recentPatients.isEmpty)
+                    _animated(4, Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      child: Center(child: Text('No hay pacientes registrados aún.', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5)))),
+                    ))
+                  else
+                    ..._recentPatients.map((p) {
+                      final name = p.fullName ?? '—';
+                      final date = p.lastVisit != null
+                          ? '${p.lastVisit!.day} ${_monthName(p.lastVisit!.month)} ${p.lastVisit!.year}'
+                          : 'Sin visitas';
+                      return _animated(4, _buildPatientCard(name, 'Activo', date));
+                    }).toList(),
                 ] else ...[
                   _animated(3, _buildSectionTitle('Últimos Análisis')),
                   SizedBox(height: 12),
@@ -516,6 +558,12 @@ class _HomeContentState extends State<HomeContent>
         ),
       ),
     );
+  }
+
+  // Convierte número de mes a nombre en español
+  String _monthName(int month) {
+    const names = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+    return names[month - 1];
   }
 
   Widget _animated(int index, Widget child) {
@@ -592,13 +640,16 @@ class _HomeContentState extends State<HomeContent>
   // ── Stats Row (contextualizado) ──
   Widget _buildStatsRow(BuildContext context, bool isDoctor) {
     if (isDoctor) {
+      final totalPatients = _authService.isDoctor ? _recentPatients.length : 0; // Se actualizará a real abajo si lo bajamos completo, o pasaremos el conteo.
+      // Ya que HomeScreen baja solo los últimos 3, necesitamos el count real. 
+      // Por ahora usaré '...' o el len real cuando modifiquemos authService para traer el total.
       return Row(
         children: [
-          Expanded(child: _buildStatCard(Icons.people, 'Pacientes', '24')),
+          Expanded(child: _buildStatCard(Icons.people, 'Pacientes', _isLoadingPatients ? '...' : '$_totalPatientsCount')),
           SizedBox(width: 12),
-          Expanded(child: _buildStatCard(Icons.analytics_outlined, 'Análisis Hoy', '5')),
+          Expanded(child: _buildStatCard(Icons.analytics_outlined, 'Análisis Hoy', '0')), // TODO: Conectar real después
           SizedBox(width: 12),
-          Expanded(child: _buildStatCard(Icons.pending_actions, 'Pendientes', '3')),
+          Expanded(child: _buildStatCard(Icons.pending_actions, 'Pendientes', '0')),
         ],
       );
     }

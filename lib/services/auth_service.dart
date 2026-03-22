@@ -267,6 +267,40 @@ class AuthService {
     _currentUser = null;
   }
 
+  // ─────────────────────────────────────────────────────────────────
+  // Recuperación de contraseña (sin token — usuario no autenticado)
+  // ─────────────────────────────────────────────────────────────────
+
+  /// Paso 1: Solicita un OTP al correo del usuario para recuperar su contraseña.
+  Future<void> forgotPassword(String email) async {
+    final res = await http.post(
+      Uri.parse('${ApiConfig.baseUrl}/auth/forgot-password'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': email}),
+    );
+    if (res.statusCode != 200) {
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      throw Exception(body['error'] ?? body['message'] ?? 'Error al enviar el código');
+    }
+  }
+
+  /// Paso 3: Valida el OTP y establece la nueva contraseña.
+  Future<void> resetPassword({
+    required String email,
+    required String otp,
+    required String newPassword,
+  }) async {
+    final res = await http.post(
+      Uri.parse('${ApiConfig.baseUrl}/auth/reset-password'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': email, 'otp': otp, 'newPassword': newPassword}),
+    );
+    if (res.statusCode != 200) {
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      throw Exception(body['error'] ?? body['message'] ?? 'Error al restablecer la contraseña');
+    }
+  }
+
   Future<void> clearStorage() async {
     _accessToken = null;
     _currentUser = null;

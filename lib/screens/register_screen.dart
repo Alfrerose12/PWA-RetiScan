@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:another_flushbar/flushbar.dart';
 import 'dart:math' as math;
 import '../widgets/glassmorphic_card.dart';
 import '../widgets/animated_button.dart';
@@ -145,14 +146,22 @@ class _RegisterScreenState extends State<RegisterScreen>
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
+    Flushbar(
+      title: 'Error',
+      message: message,
+      icon: Icon(Icons.error_outline, size: 28, color: Colors.redAccent),
+      backgroundColor: Color(0xFF1E1E2E),
+      borderColor: Colors.redAccent.withOpacity(0.5),
+      borderWidth: 1.5,
+      borderRadius: BorderRadius.circular(12),
+      margin: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      flushbarPosition: FlushbarPosition.TOP,
+      duration: Duration(seconds: 4),
+      boxShadows: [BoxShadow(color: Colors.redAccent.withOpacity(0.2), blurRadius: 12)],
+      titleColor: Colors.white,
+      messageColor: Colors.white70,
+    ).show(context);
   }
 
   Future<void> _send2FACode() async {
@@ -164,14 +173,22 @@ class _RegisterScreenState extends State<RegisterScreen>
     setState(() => _isLoading = false);
     
     if (code != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Código de verificación enviado. (Cód: $code)'),
-          backgroundColor: Colors.green,
-          behavior: SnackBarBehavior.floating,
-          duration: Duration(seconds: 5),
-        )
-      );
+      Flushbar(
+        title: 'Éxito',
+        message: 'Código de verificación enviado. (Cód: $code)',
+        icon: Icon(Icons.check_circle, size: 28, color: Colors.greenAccent),
+        backgroundColor: Color(0xFF1E1E2E),
+        borderColor: Colors.greenAccent.withOpacity(0.5),
+        borderWidth: 1.5,
+        borderRadius: BorderRadius.circular(12),
+        margin: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        flushbarPosition: FlushbarPosition.TOP,
+        duration: Duration(seconds: 5),
+        boxShadows: [BoxShadow(color: Colors.greenAccent.withOpacity(0.2), blurRadius: 12)],
+        titleColor: Colors.white,
+        messageColor: Colors.white70,
+      ).show(context);
     } else {
       _showError('Error al enviar el código de verificación.');
     }
@@ -203,18 +220,22 @@ class _RegisterScreenState extends State<RegisterScreen>
   Future<void> _register() async {
     // El registro de médicos se realiza a través de la Landing Page de RetiScan.
     // Esta pantalla está deshabilitada en la PWA.
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'El registro de médicos se realiza en la Landing Page de RetiScan. '
-          'Contacta al administrador para obtener acceso.',
-        ),
-        backgroundColor: Colors.orange[700],
-        behavior: SnackBarBehavior.floating,
-        duration: Duration(seconds: 5),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
+    Flushbar(
+      title: 'Aviso',
+      message: 'El registro de médicos se realiza en la Landing Page de RetiScan. Contacta al administrador para obtener acceso.',
+      icon: Icon(Icons.info_outline, size: 28, color: Colors.orangeAccent),
+      backgroundColor: Color(0xFF1E1E2E),
+      borderColor: Colors.orangeAccent.withOpacity(0.5),
+      borderWidth: 1.5,
+      borderRadius: BorderRadius.circular(12),
+      margin: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      flushbarPosition: FlushbarPosition.TOP,
+      duration: Duration(seconds: 6),
+      boxShadows: [BoxShadow(color: Colors.orangeAccent.withOpacity(0.2), blurRadius: 12)],
+      titleColor: Colors.white,
+      messageColor: Colors.white70,
+    ).show(context);
   }
 
   @override

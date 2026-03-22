@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:another_flushbar/flushbar.dart';
 import 'dart:math' as math;
 import '../widgets/glassmorphic_card.dart';
 import '../widgets/animated_button.dart';
@@ -126,14 +127,22 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen>
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
+    Flushbar(
+      title: 'Error',
+      message: message,
+      icon: Icon(Icons.error_outline, size: 28, color: Colors.redAccent),
+      backgroundColor: Color(0xFF1E1E2E),
+      borderColor: Colors.redAccent.withOpacity(0.5),
+      borderWidth: 1.5,
+      borderRadius: BorderRadius.circular(12),
+      margin: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      flushbarPosition: FlushbarPosition.TOP,
+      duration: Duration(seconds: 4),
+      boxShadows: [BoxShadow(color: Colors.redAccent.withOpacity(0.2), blurRadius: 12)],
+      titleColor: Colors.white,
+      messageColor: Colors.white70,
+    ).show(context);
   }
 
   Future<void> _send2FACode() async {
@@ -144,14 +153,22 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen>
     setState(() => _isLoading = false);
     
     if (res['success'] == true) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Código de verificación enviado. Revisa tu correo o SMS.'),
-          backgroundColor: Colors.green,
-          behavior: SnackBarBehavior.floating,
-          duration: Duration(seconds: 5),
-        )
-      );
+      Flushbar(
+        title: 'Éxito',
+        message: 'Código de verificación enviado. Revisa tu correo.',
+        icon: Icon(Icons.check_circle, size: 28, color: Colors.greenAccent),
+        backgroundColor: Color(0xFF1E1E2E),
+        borderColor: Colors.greenAccent.withOpacity(0.5),
+        borderWidth: 1.5,
+        borderRadius: BorderRadius.circular(12),
+        margin: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        flushbarPosition: FlushbarPosition.TOP,
+        duration: Duration(seconds: 5),
+        boxShadows: [BoxShadow(color: Colors.greenAccent.withOpacity(0.2), blurRadius: 12)],
+        titleColor: Colors.white,
+        messageColor: Colors.white70,
+      ).show(context);
     } else if (res['message']?.toString().contains('ya está verificada') == true || res['message']?.toString().contains('already verified') == true) {
       // Si por error de conexión o fallos previos la cuenta ya está verificada, saltamos el OTP
       _saveProfileDirectly();

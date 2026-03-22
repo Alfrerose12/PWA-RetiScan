@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'dart:math' as math;
+import 'package:another_flushbar/flushbar.dart';
 import 'login_loading_screen.dart';
 import 'change_password_screen.dart';
+import 'forgot_password_screen.dart';
 import '../widgets/glassmorphic_card.dart';
 import '../widgets/animated_button.dart';
 import '../services/auth_service.dart';
@@ -99,15 +101,22 @@ class _LoginScreenState extends State<LoginScreen>
         }
         _navigateAfterLogin(result);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result['message'] ?? 'Credenciales inválidas'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10)),
-          ),
-        );
+        Flushbar(
+          title: 'Acceso denegado',
+          message: result['message'] ?? 'Credenciales inválidas',
+          icon: Icon(Icons.error_outline, size: 28, color: Colors.redAccent),
+          backgroundColor: Color(0xFF1E1E2E),
+          borderColor: Colors.redAccent.withOpacity(0.5),
+          borderWidth: 1.5,
+          borderRadius: BorderRadius.circular(12),
+          margin: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          flushbarPosition: FlushbarPosition.TOP,
+          duration: Duration(seconds: 4),
+          boxShadows: [BoxShadow(color: Colors.redAccent.withOpacity(0.3), blurRadius: 12)],
+          titleColor: Colors.white,
+          messageColor: Colors.white70,
+        ).show(context);
       }
     }
   }
@@ -194,13 +203,23 @@ class _LoginScreenState extends State<LoginScreen>
                       Navigator.pop(context); // Cerrar Modal
                       _navigateAfterLogin(res); // Navegar a Home
                     } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(res['message'] ?? 'Error desconocido'),
-                          backgroundColor: Colors.red,
-                          behavior: SnackBarBehavior.floating,
-                        )
-                      );
+                      Navigator.pop(context); // Cerrar modal primero
+                      Flushbar(
+                        title: 'Código incorrecto',
+                        message: res['message'] ?? 'Código OTP inválido o expirado',
+                        icon: Icon(Icons.security_outlined, size: 28, color: Colors.orangeAccent),
+                        backgroundColor: Color(0xFF1E1E2E),
+                        borderColor: Colors.orangeAccent.withOpacity(0.5),
+                        borderWidth: 1.5,
+                        borderRadius: BorderRadius.circular(12),
+                        margin: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                        flushbarPosition: FlushbarPosition.TOP,
+                        duration: Duration(seconds: 5),
+                        boxShadows: [BoxShadow(color: Colors.orangeAccent.withOpacity(0.3), blurRadius: 12)],
+                        titleColor: Colors.white,
+                        messageColor: Colors.white70,
+                      ).show(context);
                     }
                   },
                   style: ElevatedButton.styleFrom(
@@ -506,7 +525,17 @@ class _LoginScreenState extends State<LoginScreen>
     return Align(
       alignment: Alignment.centerRight,
       child: TextButton(
-        onPressed: () {},
+        onPressed: () {
+          Navigator.push(
+            context,
+            PageRouteBuilder(
+              pageBuilder: (context, animation, _) => ForgotPasswordScreen(),
+              transitionsBuilder: (context, animation, _, child) =>
+                  FadeTransition(opacity: animation, child: child),
+              transitionDuration: Duration(milliseconds: 400),
+            ),
+          );
+        },
         style: TextButton.styleFrom(
           padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         ),

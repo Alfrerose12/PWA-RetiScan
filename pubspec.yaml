@@ -53,6 +53,7 @@ dependencies:
   path_provider: ^2.1.4
   pdf: ^3.11.1
   flutter_local_notifications: ^17.2.1
+  another_flushbar: ^1.12.30
 
 dev_dependencies:
   flutter_test:
