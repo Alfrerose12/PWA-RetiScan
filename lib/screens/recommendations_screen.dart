@@ -129,8 +129,6 @@ class _RecommendationsScreenState extends State<RecommendationsScreen>
             ),
             child: TabBar(
               controller: _tabController,
-              isScrollable: true,
-              tabAlignment: TabAlignment.start,
               indicator: BoxDecoration(
                 color: primaryColor,
                 borderRadius: BorderRadius.circular(10),

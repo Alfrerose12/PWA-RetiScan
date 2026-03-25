@@ -334,9 +334,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       // Bottom Nav simple y directo
-      bottomNavigationBar: BottomAppBar(
-        color: cardColor,
-        shape: _authService.isDoctor ? null : CircularNotchedRectangle(),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.08))),
+        ),
+        child: BottomAppBar(
+          color: cardColor,
+          elevation: 0,
+          shape: _authService.isDoctor ? null : CircularNotchedRectangle(),
         notchMargin: 8,
         child: SizedBox(
           height: 60,
@@ -384,6 +389,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ],
           ),
         ),
+      ),
       ),
     );
   }
@@ -570,11 +576,29 @@ class _HomeContentState extends State<HomeContent>
                 _animated(5, _buildSectionTitle('Acciones Rápidas')),
                 SizedBox(height: 12),
                 if (isDoctor) ...[
-                  _animated(5, _buildQuickAction(Icons.person_add_outlined, 'Registrar nuevo paciente')),
-                  _animated(5, _buildQuickAction(Icons.assignment_outlined, 'Revisar diagnósticos pendientes')),
+                  _animated(5, _buildQuickAction(Icons.person_add_outlined, 'Registrar nuevo paciente', () {
+                    final cardColor = Theme.of(context).cardTheme.color ?? Theme.of(context).colorScheme.surface;
+                    final textPrimary = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black;
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => Scaffold(
+                      appBar: AppBar(title: Text('Gestión de Pacientes'), backgroundColor: cardColor, foregroundColor: textPrimary),
+                      body: PatientManagementScreen(),
+                    )));
+                  })),
+                  _animated(5, _buildQuickAction(Icons.assignment_outlined, 'Revisar diagnósticos', () {
+                    final cardColor = Theme.of(context).cardTheme.color ?? Theme.of(context).colorScheme.surface;
+                    final textPrimary = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black;
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => Scaffold(
+                      appBar: AppBar(title: Text('Gestión de Pacientes'), backgroundColor: cardColor, foregroundColor: textPrimary),
+                      body: PatientManagementScreen(),
+                    )));
+                  })),
                 ] else ...[
-                  _animated(5, _buildQuickAction(Icons.camera_alt_outlined, 'Realizar nueva captura')),
-                  _animated(5, _buildQuickAction(Icons.calendar_today_outlined, 'Programar próxima revisión')),
+                  _animated(5, _buildQuickAction(Icons.camera_alt_outlined, 'Realizar nueva captura', () {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => CaptureScreen()));
+                  })),
+                  _animated(5, _buildQuickAction(Icons.calendar_today_outlined, 'Programar próxima revisión', () {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Esta función de calendario pronto estará lista')));
+                  })),
                 ],
                 SizedBox(height: 24),
               ],
@@ -888,14 +912,18 @@ class _HomeContentState extends State<HomeContent>
   }
 
   // ── Acciones rápidas ──
-  Widget _buildQuickAction(IconData icon, String text) {
+  Widget _buildQuickAction(IconData icon, String text, VoidCallback onTap) {
     final primaryColor = Theme.of(context).brightness == Brightness.dark 
         ? Theme.of(context).colorScheme.secondary 
         : Theme.of(context).colorScheme.primary;
 
-    return Container(
-      margin: EdgeInsets.only(bottom: 10),
-      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+    return Padding(
+      padding: EdgeInsets.only(bottom: 10),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
         color: primaryColor.withOpacity(0.08),
         borderRadius: BorderRadius.circular(16),
@@ -918,6 +946,8 @@ class _HomeContentState extends State<HomeContent>
           Icon(Icons.arrow_forward_ios, color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5), size: 14),
         ],
       ),
+    ),
+    ),
     );
   }
 }
