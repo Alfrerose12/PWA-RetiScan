@@ -20,7 +20,9 @@ class _PatientManagementScreenState extends State<PatientManagementScreen> {
   bool _isLoading = false;
 
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
+  final _firstNameController = TextEditingController();
+  final _paternalSurnameController = TextEditingController();
+  final _maternalSurnameController = TextEditingController();
 
   String? _tempUsername;
   String? _tempPassword;
@@ -118,7 +120,9 @@ class _PatientManagementScreenState extends State<PatientManagementScreen> {
 
   @override
   void dispose() {
-    _nameController.dispose();
+    _firstNameController.dispose();
+    _paternalSurnameController.dispose();
+    _maternalSurnameController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -132,11 +136,9 @@ class _PatientManagementScreenState extends State<PatientManagementScreen> {
       _tempPassword = null;
     });
 
-    final name = _nameController.text.trim();
-    final parts = name.split(' ');
-    final firstName = parts.isNotEmpty ? parts[0] : '';
-    final paternalSurname = parts.length > 1 ? parts[1] : '';
-    final maternalSurname = parts.length > 2 ? parts.sublist(2).join(' ') : '';
+    final firstName = _firstNameController.text.trim();
+    final paternalSurname = _paternalSurnameController.text.trim();
+    final maternalSurname = _maternalSurnameController.text.trim();
 
     try {
       final result = await _patientService.createPatient(
@@ -151,7 +153,9 @@ class _PatientManagementScreenState extends State<PatientManagementScreen> {
         _tempPassword = result['tempPassword'];
       });
 
-      _nameController.clear();
+      _firstNameController.clear();
+      _paternalSurnameController.clear();
+      _maternalSurnameController.clear();
       _showSuccessFlushbar('Paciente creado con éxito.');
       
       // Recargar lista
@@ -333,46 +337,128 @@ class _PatientManagementScreenState extends State<PatientManagementScreen> {
     );
   }
 
+  // Estado de ordenamiento
+  String _sortBy = 'name';
+  bool _sortAscending = true;
+
+  void _applySorting() {
+    setState(() {
+      _filteredPatients.sort((a, b) {
+        int comparison;
+        switch (_sortBy) {
+          case 'age':
+            comparison = a.age.compareTo(b.age);
+            break;
+          case 'analyses':
+            comparison = a.totalAnalyses.compareTo(b.totalAnalyses);
+            break;
+          case 'lastVisit':
+            final dateA = a.lastVisit ?? DateTime(2000);
+            final dateB = b.lastVisit ?? DateTime(2000);
+            comparison = dateA.compareTo(dateB);
+            break;
+          default: // name
+            comparison = a.fullName.compareTo(b.fullName);
+        }
+        return _sortAscending ? comparison : -comparison;
+      });
+    });
+  }
+
   Widget _buildFilterRow(bool isDesktop) {
     final textSecondary = Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7);
+    final primaryColor = Theme.of(context).brightness == Brightness.dark 
+        ? Theme.of(context).colorScheme.secondary 
+        : Theme.of(context).colorScheme.primary;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 24),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.2)),
-        ),
-        child: TextField(
-          controller: _searchController,
-          onChanged: (val) {
-            setState(() {
-              _searchQuery = val;
-              _filterAndPaginatePatients();
-            });
-          },
-          style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color),
-          decoration: InputDecoration(
-            hintText: 'Buscar paciente por nombre o email...',
-            hintStyle: TextStyle(color: textSecondary, fontSize: 14),
-            prefixIcon: Icon(Icons.search, color: textSecondary),
-            suffixIcon: _searchQuery.isNotEmpty 
-              ? IconButton(
-                  icon: Icon(Icons.clear, color: textSecondary, size: 20),
-                  onPressed: () {
-                    _searchController.clear();
-                    setState(() {
-                      _searchQuery = '';
-                      _filterAndPaginatePatients();
-                    });
-                  },
-                )
-              : null,
-            border: InputBorder.none,
-            isDense: true,
-            contentPadding: EdgeInsets.symmetric(vertical: 14),
+      child: Row(
+        children: [
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).scaffoldBackgroundColor,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.2)),
+              ),
+              child: TextField(
+                controller: _searchController,
+                onChanged: (val) {
+                  setState(() {
+                    _searchQuery = val;
+                    _filterAndPaginatePatients();
+                  });
+                },
+                style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color),
+                decoration: InputDecoration(
+                  hintText: 'Buscar paciente por nombre o email...',
+                  hintStyle: TextStyle(color: textSecondary, fontSize: 14),
+                  prefixIcon: Icon(Icons.search, color: textSecondary),
+                  suffixIcon: _searchQuery.isNotEmpty 
+                    ? IconButton(
+                        icon: Icon(Icons.clear, color: textSecondary, size: 20),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() {
+                            _searchQuery = '';
+                            _filterAndPaginatePatients();
+                          });
+                        },
+                      )
+                    : null,
+                  border: InputBorder.none,
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(vertical: 14),
+                ),
+              ),
+            ),
           ),
-        ),
+          SizedBox(width: 8),
+          PopupMenuButton<String>(
+            icon: Container(
+              padding: EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Theme.of(context).scaffoldBackgroundColor,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.2)),
+              ),
+              child: Icon(Icons.filter_list, color: primaryColor, size: 20),
+            ),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            onSelected: (value) {
+              if (value == 'toggle_order') {
+                _sortAscending = !_sortAscending;
+              } else {
+                _sortBy = value;
+              }
+              _applySorting();
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem(value: 'name', child: Row(children: [
+                Icon(Icons.sort_by_alpha, size: 18, color: _sortBy == 'name' ? primaryColor : null),
+                SizedBox(width: 8), Text('Ordenar por Nombre'),
+              ])),
+              PopupMenuItem(value: 'age', child: Row(children: [
+                Icon(Icons.cake, size: 18, color: _sortBy == 'age' ? primaryColor : null),
+                SizedBox(width: 8), Text('Ordenar por Edad'),
+              ])),
+              PopupMenuItem(value: 'analyses', child: Row(children: [
+                Icon(Icons.bar_chart, size: 18, color: _sortBy == 'analyses' ? primaryColor : null),
+                SizedBox(width: 8), Text('Ordenar por Análisis'),
+              ])),
+              PopupMenuItem(value: 'lastVisit', child: Row(children: [
+                Icon(Icons.calendar_today, size: 18, color: _sortBy == 'lastVisit' ? primaryColor : null),
+                SizedBox(width: 8), Text('Ordenar por Última Visita'),
+              ])),
+              PopupMenuDivider(),
+              PopupMenuItem(value: 'toggle_order', child: Row(children: [
+                Icon(_sortAscending ? Icons.arrow_upward : Icons.arrow_downward, size: 18),
+                SizedBox(width: 8), Text(_sortAscending ? 'Descendente' : 'Ascendente'),
+              ])),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -488,6 +574,8 @@ class _PatientManagementScreenState extends State<PatientManagementScreen> {
                       Text("Hace 2 semanas", style: TextStyle(fontSize: 11, color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5))),
                     ],
                   ),
+                  // Indicador visual para ver detalles (móvil)
+                  Icon(Icons.chevron_right, color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.3), size: 24),
                 ],
               ),
             ),
@@ -581,6 +669,25 @@ class _PatientManagementScreenState extends State<PatientManagementScreen> {
       ),
         ),
         buildPaginationControls(),
+        // Leyenda debajo de la tabla
+        Padding(
+          padding: EdgeInsets.only(top: 8, bottom: 4),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.touch_app, size: 14, color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.4)),
+              SizedBox(width: 6),
+              Text(
+                'Haz clic en un paciente para ver sus detalles',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.4),
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -624,11 +731,11 @@ class _PatientManagementScreenState extends State<PatientManagementScreen> {
                     child: Column(
                       children: [
                         TextFormField(
-                          controller: _nameController,
+                          controller: _firstNameController,
                           inputFormatters: [InputSanitizer.blockDangerousChars],
                           style: TextStyle(color: textPrimary),
                           decoration: InputDecoration(
-                            labelText: 'Nombre Completo',
+                            labelText: 'Nombre(s)',
                             labelStyle: TextStyle(color: textSecondary),
                             prefixIcon: Icon(Icons.person, color: primaryColor),
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1))),
@@ -641,6 +748,46 @@ class _PatientManagementScreenState extends State<PatientManagementScreen> {
                             final safe = InputSanitizer.validateSafeInput(val);
                             if (safe != null) return safe;
                             return val!.isEmpty ? 'Requerido' : null;
+                          },
+                        ),
+                        SizedBox(height: 16),
+                        TextFormField(
+                          controller: _paternalSurnameController,
+                          inputFormatters: [InputSanitizer.blockDangerousChars],
+                          style: TextStyle(color: textPrimary),
+                          decoration: InputDecoration(
+                            labelText: 'Apellido Paterno',
+                            labelStyle: TextStyle(color: textSecondary),
+                            prefixIcon: Icon(Icons.badge, color: primaryColor),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1))),
+                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1))),
+                            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: primaryColor)),
+                            filled: true,
+                            fillColor: Theme.of(context).scaffoldBackgroundColor,
+                          ),
+                          validator: (val) {
+                            final safe = InputSanitizer.validateSafeInput(val);
+                            if (safe != null) return safe;
+                            return val!.isEmpty ? 'Requerido' : null;
+                          },
+                        ),
+                        SizedBox(height: 16),
+                        TextFormField(
+                          controller: _maternalSurnameController,
+                          inputFormatters: [InputSanitizer.blockDangerousChars],
+                          style: TextStyle(color: textPrimary),
+                          decoration: InputDecoration(
+                            labelText: 'Apellido Materno (Opcional)',
+                            labelStyle: TextStyle(color: textSecondary),
+                            prefixIcon: Icon(Icons.badge_outlined, color: primaryColor),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1))),
+                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1))),
+                            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: primaryColor)),
+                            filled: true,
+                            fillColor: Theme.of(context).scaffoldBackgroundColor,
+                          ),
+                          validator: (val) {
+                            return InputSanitizer.validateSafeInput(val);
                           },
                         ),
                         SizedBox(height: 24),
@@ -690,22 +837,42 @@ class _PatientManagementScreenState extends State<PatientManagementScreen> {
                         SizedBox(height: 16),
                         Text('Proporciona estos datos al paciente para que inicie sesión.', style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.cyanAccent.withOpacity(0.7) : Colors.cyan.shade800, fontSize: 13)),
                         SizedBox(height: 20),
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton.icon(
-                            icon: Icon(Icons.copy, size: 18),
-                            label: Text('Copiar Credenciales'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.cyanAccent : Colors.cyan.shade700,
-                              side: BorderSide(color: Theme.of(context).brightness == Brightness.dark ? Colors.cyanAccent.withOpacity(0.5) : Colors.cyan.shade700.withOpacity(0.5)),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              padding: EdgeInsets.symmetric(vertical: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                icon: Icon(Icons.person_outline, size: 18),
+                                label: Text('Copiar Usuario'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.cyanAccent : Colors.cyan.shade700,
+                                  side: BorderSide(color: Theme.of(context).brightness == Brightness.dark ? Colors.cyanAccent.withOpacity(0.5) : Colors.cyan.shade700.withOpacity(0.5)),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  padding: EdgeInsets.symmetric(vertical: 12),
+                                ),
+                                onPressed: () {
+                                  Clipboard.setData(ClipboardData(text: _tempUsername!));
+                                  _showSuccessFlushbar('Usuario copiado al portapapeles');
+                                },
+                              ),
                             ),
-                            onPressed: () {
-                              Clipboard.setData(ClipboardData(text: 'Hola, tus credenciales para acceder a RetiScan son:\n\nUsuario: $_tempUsername\nContraseña: $_tempPassword\n\nPor favor inicia sesión para completar tu perfil y cambiar tu contraseña.'));
-                              _showSuccessFlushbar('Credenciales copiadas al portapapeles');
-                            },
-                          ),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                icon: Icon(Icons.lock_outline, size: 18),
+                                label: Text('Copiar Contraseña'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.cyanAccent : Colors.cyan.shade700,
+                                  side: BorderSide(color: Theme.of(context).brightness == Brightness.dark ? Colors.cyanAccent.withOpacity(0.5) : Colors.cyan.shade700.withOpacity(0.5)),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  padding: EdgeInsets.symmetric(vertical: 12),
+                                ),
+                                onPressed: () {
+                                  Clipboard.setData(ClipboardData(text: _tempPassword!));
+                                  _showSuccessFlushbar('Contraseña copiada al portapapeles');
+                                },
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -837,23 +1004,7 @@ class _PatientManagementScreenState extends State<PatientManagementScreen> {
                         _buildAnalysisCard('01/11/2024', 'Sin anomalías detectadas', 'Normal', Colors.green, context),
                         SizedBox(height: 24),
                         
-                        SizedBox(
-                          width: double.infinity,
-                          height: 50,
-                          child: ElevatedButton.icon(
-                            icon: Icon(Icons.edit),
-                            label: Text('Editar Datos Básicos'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: primaryColor,
-                              foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            ),
-                            onPressed: () {
-                              Navigator.of(context).pop();
-                              _showEditPatientModal(patient);
-                            },
-                          ),
-                        ),
+                        SizedBox(height: 24),
                         SizedBox(height: 24),
                       ],
                     ),

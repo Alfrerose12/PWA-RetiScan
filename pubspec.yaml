@@ -48,7 +48,7 @@ dependencies:
   shared_preferences: ^2.2.2
   http: ^1.2.1
   permission_handler: ^11.3.1
-  fl_chart: ^0.68.0
+  syncfusion_flutter_charts: ^33.1.45
   share_plus: ^10.0.0
   path_provider: ^2.1.4
   pdf: ^3.11.1

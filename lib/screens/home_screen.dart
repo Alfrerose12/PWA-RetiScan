@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'capture_screen.dart';
+import 'recommendations_screen.dart';
 import 'history_screen.dart';
 import 'profile_screen.dart';
 import 'settings_screen.dart';
@@ -23,8 +24,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   int _currentIndex = 0;
   final AuthService _authService = AuthService();
 
-  // ── Pantallas según rol ──
-  List<Widget> _getScreens() {
+  // ── Pantallas según rol y plataforma ──
+  List<Widget> _getScreens({required bool isDesktop}) {
     if (_authService.isDoctor) {
       return [
         HomeContent(),
@@ -32,17 +33,27 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ProfileScreen(),
       ];
     } else {
-      return [
-        HomeContent(),
-        CaptureScreen(),
-        HistoryScreen(),
-        ProfileScreen(),
-      ];
+      if (isDesktop) {
+        return [
+          HomeContent(),
+          CaptureScreen(),
+          RecommendationsScreen(),
+          HistoryScreen(),
+          ProfileScreen(),
+        ];
+      } else {
+        return [
+          HomeContent(),
+          RecommendationsScreen(),
+          HistoryScreen(),
+          ProfileScreen(),
+        ];
+      }
     }
   }
 
-  // ── Items de navegación (directos, sin fantasmas) ──
-  List<_NavItem> _getNavItems() {
+  // ── Items de navegación ──
+  List<_NavItem> _getNavItems({required bool isDesktop}) {
     if (_authService.isDoctor) {
       return [
         _NavItem(Icons.dashboard_outlined, Icons.dashboard, 'Inicio'),
@@ -50,23 +61,37 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         _NavItem(Icons.person_outline, Icons.person, 'Perfil'),
       ];
     } else {
-      return [
-        _NavItem(Icons.dashboard_outlined, Icons.dashboard, 'Inicio'),
-        _NavItem(Icons.camera_alt_outlined, Icons.camera_alt, 'Captura'),
-        _NavItem(Icons.history_outlined, Icons.history, 'Histórico'),
-        _NavItem(Icons.person_outline, Icons.person, 'Perfil'),
-      ];
+      if (isDesktop) {
+        return [
+          _NavItem(Icons.dashboard_outlined, Icons.dashboard, 'Inicio'),
+          _NavItem(Icons.camera_alt_outlined, Icons.camera_alt, 'Captura'),
+          _NavItem(Icons.recommend_outlined, Icons.recommend, 'Recomendaciones'),
+          _NavItem(Icons.history_outlined, Icons.history, 'Histórico'),
+          _NavItem(Icons.person_outline, Icons.person, 'Perfil'),
+        ];
+      } else {
+        return [
+          _NavItem(Icons.dashboard_outlined, Icons.dashboard, 'Inicio'),
+          _NavItem(Icons.recommend_outlined, Icons.recommend, 'Recs.'),
+          _NavItem(Icons.history_outlined, Icons.history, 'Histórico'),
+          _NavItem(Icons.person_outline, Icons.person, 'Perfil'),
+        ];
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final screens = _getScreens();
-    final navItems = _getNavItems();
-
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (constraints.maxWidth >= 800) {
+        final isDesktop = constraints.maxWidth >= 800;
+        final screens = _getScreens(isDesktop: isDesktop);
+        final navItems = _getNavItems(isDesktop: isDesktop);
+        // Clamp index if switching between layouts with different item counts
+        if (_currentIndex >= screens.length) {
+          _currentIndex = 0;
+        }
+        if (isDesktop) {
           return _buildDesktopLayout(screens, navItems);
         }
         return _buildMobileLayout(screens, navItems);
@@ -108,7 +133,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   padding: EdgeInsets.symmetric(horizontal: 24),
                   child: Row(
                     children: [
-                      Icon(Icons.remove_red_eye, size: 28, color: primaryColor),
+                      Image.asset('assets/ilustrator/logo_sin_fondo.png', width: 32, height: 32),
                       SizedBox(width: 12),
                       Text(
                         'RetiScan',
@@ -255,7 +280,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         elevation: 0,
         title: Row(
           children: [
-            Icon(Icons.remove_red_eye, color: primaryColor, size: 24),
+            Image.asset('assets/ilustrator/logo_sin_fondo.png', width: 28, height: 28),
             SizedBox(width: 10),
             Text(
               'RetiScan',
@@ -300,12 +325,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       // FAB central (Imagen 1)
       floatingActionButton: _authService.isDoctor ? null : FloatingActionButton(
         onPressed: () {
-          setState(() => _currentIndex = 1); // Ir a Captura para paciente
+          Navigator.push(context, MaterialPageRoute(builder: (_) => CaptureScreen()));
         },
         backgroundColor: primaryColor,
         elevation: 8,
         shape: CircleBorder(),
-        child: Icon(Icons.add, color: Theme.of(context).colorScheme.onPrimary, size: 28),
+        child: Icon(Icons.camera_alt, color: Theme.of(context).colorScheme.onPrimary, size: 28),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       // Bottom Nav simple y directo
@@ -605,7 +630,10 @@ class _HomeContentState extends State<HomeContent>
           Positioned(
             right: -30,
             top: -30,
-            child: Icon(Icons.remove_red_eye, size: 120, color: Colors.white.withOpacity(0.08)),
+            child: Opacity(
+              opacity: 0.08,
+              child: Image.asset('assets/ilustrator/logo_sin_fondo.png', width: 120, height: 120),
+            ),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
