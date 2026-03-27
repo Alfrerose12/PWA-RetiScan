@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:another_flushbar/flushbar.dart';
 import 'dart:math' as math;
 import '../widgets/glassmorphic_card.dart';
 import '../widgets/animated_button.dart';
 import '../services/auth_service.dart';
+import '../config/input_sanitizer.dart';
 
 class RegisterScreen extends StatefulWidget {
   @override
@@ -426,6 +428,8 @@ class _RegisterScreenState extends State<RegisterScreen>
             label: 'Nombre completo',
             icon: Icons.person_outline,
             delay: 400,
+            inputFormatters: [InputSanitizer.nameOnly],
+            maxLength: 100,
             onChanged: (val) {
               // Auto-generate username
               if (val.isNotEmpty) {
@@ -434,11 +438,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                 _usernameController.text = '';
               }
             },
-            validator: (value) {
-              if (value == null || value.isEmpty) return 'Ingresa tu nombre';
-              if (value.trim().length < 2) return 'Nombre demasiado corto';
-              return null;
-            },
+            validator: (value) => InputSanitizer.validateName(value, campo: 'Nombre'),
           ),
           SizedBox(height: 16),
           _buildTextField(
@@ -504,11 +504,7 @@ class _RegisterScreenState extends State<RegisterScreen>
             icon: Icons.email_outlined,
             delay: 400,
             keyboardType: TextInputType.emailAddress,
-            validator: (value) {
-              if (value == null || value.isEmpty) return 'Ingresa tu correo';
-              if (!value.contains('@')) return 'Ingresa un correo válido';
-              return null;
-            },
+            validator: (value) => InputSanitizer.validateEmail(value),
           ),
           SizedBox(height: 16),
           _buildTextField(
@@ -517,11 +513,9 @@ class _RegisterScreenState extends State<RegisterScreen>
             icon: Icons.phone_outlined,
             delay: 500,
             keyboardType: TextInputType.phone,
-            validator: (value) {
-              if (value == null || value.isEmpty) return 'Ingresa tu teléfono';
-              if (value.length < 10) return 'Teléfono inválido';
-              return null;
-            },
+            inputFormatters: [InputSanitizer.phoneOnly],
+            maxLength: 10,
+            validator: (value) => InputSanitizer.validatePhone(value),
           ),
           SizedBox(height: 16),
           _buildDropdownField(
@@ -687,6 +681,8 @@ class _RegisterScreenState extends State<RegisterScreen>
     TextInputType keyboardType = TextInputType.text,
     String? Function(String?)? validator,
     void Function(String)? onChanged,
+    List<TextInputFormatter>? inputFormatters,
+    int? maxLength,
   }) {
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0.0, end: 1.0),
@@ -701,6 +697,8 @@ class _RegisterScreenState extends State<RegisterScreen>
         controller: controller,
         style: TextStyle(color: Colors.white),
         keyboardType: keyboardType,
+        inputFormatters: inputFormatters,
+        maxLength: maxLength,
         decoration: InputDecoration(
           labelText: label,
           labelStyle: TextStyle(color: Colors.white.withOpacity(0.8)),

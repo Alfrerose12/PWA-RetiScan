@@ -156,6 +156,7 @@ class _LoginScreenState extends State<LoginScreen>
   void _showMfaDialog(String userId, String message) {
     final otpController = TextEditingController();
     bool isVerifying = false;
+    bool rememberDevice = false;
 
     showDialog(
       context: context,
@@ -185,6 +186,32 @@ class _LoginScreenState extends State<LoginScreen>
                       counterStyle: TextStyle(color: Colors.white54),
                     ),
                   ),
+                  SizedBox(height: 8),
+                  // Checkbox: Recordar dispositivo
+                  InkWell(
+                    onTap: () => setModalState(() => rememberDevice = !rememberDevice),
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 20, height: 20,
+                          child: Checkbox(
+                            value: rememberDevice,
+                            onChanged: (v) => setModalState(() => rememberDevice = v ?? false),
+                            activeColor: Color(0xFF2563EB),
+                            checkColor: Colors.white,
+                            side: BorderSide(color: Colors.white54),
+                          ),
+                        ),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Recordar este dispositivo (30 días)',
+                            style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 13),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
               actions: [
@@ -196,7 +223,10 @@ class _LoginScreenState extends State<LoginScreen>
                   onPressed: isVerifying ? null : () async {
                     if (otpController.text.length < 6) return;
                     setModalState(() => isVerifying = true);
-                    final res = await _authService.verifyLoginOtp(userId, otpController.text);
+                    final res = await _authService.verifyLoginOtp(
+                      userId, otpController.text,
+                      rememberDevice: rememberDevice,
+                    );
                     if (!mounted) return;
                     setModalState(() => isVerifying = false);
                     if (res['success'] == true) {

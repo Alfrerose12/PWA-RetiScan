@@ -27,6 +27,9 @@ class AuthService {
 
   String? get token => _accessToken;
 
+  // ── Trust Token ("Recordar dispositivo" por 30 días) ──────────
+  static const _trustTokenKey = 'retiscan_trust_token';
+
   // Generamos un cliente HTTP que soporte cookies cross-origin (withCredentials)
   // crucial para que navegue el Refresh Token HttpOnly entre nuestra PWA y la API.
   http.Client get _client {
@@ -86,10 +89,20 @@ class AuthService {
   // ─────────────────────────────────────────────────────────────────
   Future<Map<String, dynamic>> login(String identifier, String password) async {
     try {
+      // Adjuntar Trust Token si existe (para saltar 2FA)
+      final storedTrust = html.window.localStorage[_trustTokenKey];
+      final bodyMap = <String, dynamic>{
+        'identifier': identifier,
+        'password': password,
+      };
+      if (storedTrust != null && storedTrust.isNotEmpty) {
+        bodyMap['trustToken'] = storedTrust;
+      }
+
       final res = await _client.post(
         Uri.parse('${ApiConfig.baseUrl}/auth/login'),
         headers: ApiConfig.jsonHeaders,
-        body: jsonEncode({'identifier': identifier, 'password': password}),
+        body: jsonEncode(bodyMap),
       );
 
       final body = jsonDecode(res.body) as Map<String, dynamic>;
@@ -97,7 +110,7 @@ class AuthService {
       if (res.statusCode == 200) {
         final t        = body['token'] as String;
         final userData = body['user'] as Map<String, dynamic>;
-        _accessToken   = t; // Solo a memoria
+        _accessToken   = t;
         _currentUser   = User.fromJson(userData).copyWith(token: t);
 
         return {
@@ -105,6 +118,7 @@ class AuthService {
           'mustChangePassword': _currentUser!.mustChangePassword,
           'isVerified':         _currentUser!.isVerified,
           'role':               _currentUser!.role,
+          'trustedDevice':      body['trustedDevice'] == true,
         };
       } else if (res.statusCode == 206) {
         return {
@@ -114,7 +128,6 @@ class AuthService {
           'message': body['message'] ?? 'Código OTP enviado',
         };
       } else {
-        // 401, 403, etc.
         final msg = (body['error'] ?? body['message'] ?? 'Credenciales inválidas').toString();
         return {'success': false, 'message': msg, 'statusCode': res.statusCode};
       }
@@ -126,20 +139,29 @@ class AuthService {
   // ─────────────────────────────────────────────────────────────────
   // Verificar OTP del Login (MFA Paso 2) → POST /auth/verify-login-otp
   // ─────────────────────────────────────────────────────────────────
-  Future<Map<String, dynamic>> verifyLoginOtp(String userId, String otp) async {
+  Future<Map<String, dynamic>> verifyLoginOtp(String userId, String otp, {bool rememberDevice = false}) async {
     try {
       final res = await _client.post(
         Uri.parse('${ApiConfig.baseUrl}/auth/verify-login-otp'),
         headers: ApiConfig.jsonHeaders,
-        body: jsonEncode({'userId': userId, 'otp': otp}),
+        body: jsonEncode({
+          'userId': userId,
+          'otp': otp,
+          'rememberDevice': rememberDevice,
+        }),
       );
       final body = jsonDecode(res.body) as Map<String, dynamic>;
 
       if (res.statusCode == 200) {
         final t        = body['token'] as String;
         final userData = body['user'] as Map<String, dynamic>;
-        _accessToken   = t; // Guardar a RAM final
+        _accessToken   = t;
         _currentUser   = User.fromJson(userData).copyWith(token: t);
+
+        // Guardar Trust Token si el servidor lo devolvió
+        if (body['trustToken'] != null) {
+          html.window.localStorage[_trustTokenKey] = body['trustToken'] as String;
+        }
 
         return {
           'success':            true,
@@ -199,6 +221,16 @@ class AuthService {
         body: jsonEncode({'email': email, 'type': type}),
       );
       final body = jsonDecode(res.body) as Map<String, dynamic>;
+      
+      // Auto-refresh si el token expiró
+      if (res.statusCode == 401 && body['error'] == 'TOKEN_EXPIRED') {
+        final refreshed = await doRefresh();
+        if (refreshed) {
+          return sendOtp(email, type: type); // Reintentar con el nuevo token
+        }
+        return {'success': false, 'message': 'Tu sesión ha expirado por inactividad. Inicia sesión nuevamente para continuar.'};
+      }
+
       if (res.statusCode == 200 || res.statusCode == 201) {
         return {
           'success': true,
@@ -239,6 +271,16 @@ class AuthService {
         body: jsonEncode({'otp': otp, 'type': type}),
       );
       final body = jsonDecode(res.body) as Map<String, dynamic>;
+      
+      // Auto-refresh si el token expiró
+      if (res.statusCode == 401 && body['error'] == 'TOKEN_EXPIRED') {
+        final refreshed = await doRefresh();
+        if (refreshed) {
+          return verifyOtp(otp, type: type); // Reintentar con el nuevo token
+        }
+        return {'success': false, 'message': 'Tu sesión ha expirado por inactividad. Inicia sesión nuevamente para continuar.'};
+      }
+
       if (res.statusCode == 200) {
         _currentUser = _currentUser?.copyWith(isVerified: true);
         return {'success': true};
@@ -265,6 +307,8 @@ class AuthService {
 
     _accessToken = null;
     _currentUser = null;
+    // NO borramos el Trust Token al cerrar sesión
+    // para que al reloguear en el mismo dispositivo no pida 2FA
   }
 
   // ─────────────────────────────────────────────────────────────────

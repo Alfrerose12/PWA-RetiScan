@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:another_flushbar/flushbar.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:math' as math;
 import '../widgets/glassmorphic_card.dart';
 import '../widgets/animated_button.dart';
 import '../services/auth_service.dart';
 import '../services/patient_service.dart';
+import '../config/input_sanitizer.dart';
 import 'login_loading_screen.dart';
 
 class CompleteProfileScreen extends StatefulWidget {
@@ -75,6 +78,66 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen>
     _slideController.forward();
     _fadeController.forward();
     _logoController.forward();
+
+    // Restaurar borrador si existe (tras recarga)
+    _loadDraft();
+  }
+
+  // ── Caché Inteligente ──────────────────────────────────────────────
+  static const _kGender    = 'profile_draft_gender';
+  static const _kBirthDate = 'profile_draft_birthdate';
+  static const _kEmail     = 'profile_draft_email';
+  static const _kPhone     = 'profile_draft_phone';
+  static const _kOtpSent   = 'profile_draft_otp_sent';
+
+  Future<void> _saveDraft({bool otpSent = false}) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (_selectedGender != null)    prefs.setString(_kGender, _selectedGender!);
+    if (_selectedBirthDate != null)  prefs.setString(_kBirthDate, _selectedBirthDate!.toIso8601String());
+    if (_emailController.text.isNotEmpty) prefs.setString(_kEmail, _emailController.text.trim());
+    if (_phoneController.text.isNotEmpty) prefs.setString(_kPhone, _phoneController.text.trim());
+    if (otpSent) prefs.setBool(_kOtpSent, true);
+  }
+
+  Future<void> _loadDraft() async {
+    final prefs = await SharedPreferences.getInstance();
+    final gender    = prefs.getString(_kGender);
+    final birthStr  = prefs.getString(_kBirthDate);
+    final email     = prefs.getString(_kEmail);
+    final phone     = prefs.getString(_kPhone);
+    final otpSent   = prefs.getBool(_kOtpSent) ?? false;
+
+    if (gender != null || email != null) {
+      setState(() {
+        _selectedGender = gender;
+        if (birthStr != null) {
+          _selectedBirthDate = DateTime.tryParse(birthStr);
+          if (_selectedBirthDate != null) {
+            _birthDateController.text =
+                '${_selectedBirthDate!.day}/${_selectedBirthDate!.month}/${_selectedBirthDate!.year}';
+          }
+        }
+        if (email != null) _emailController.text = email;
+        if (phone != null) _phoneController.text = phone;
+      });
+
+      // Si el OTP ya se envió, saltar directo a la página de verificación
+      if (otpSent && email != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _pageController.jumpToPage(2);
+          setState(() => _currentPage = 2);
+        });
+      }
+    }
+  }
+
+  Future<void> _clearDraft() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_kGender);
+    await prefs.remove(_kBirthDate);
+    await prefs.remove(_kEmail);
+    await prefs.remove(_kPhone);
+    await prefs.remove(_kOtpSent);
   }
 
   @override
@@ -91,7 +154,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen>
     super.dispose();
   }
 
-  void _nextPage() {
+  Future<void> _nextPage() async {
     if (_formKey.currentState!.validate()) {
       if (_currentPage == 0) {
         if (_selectedGender == null) {
@@ -102,12 +165,17 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen>
           _showError('Por favor selecciona tu fecha de nacimiento');
           return;
         }
+        // Guardar borrador al pasar del paso 1 al 2
+        await _saveDraft();
       }
       
       if (_currentPage < 2) {
-        if (_currentPage == 1) { 
-          // Enviar el OTP al correo/télefono del usuario ingresado antes de pasar a validarlo.
-          _send2FACode();
+        if (_currentPage == 1) {
+          // Guardar borrador con flag de OTP pendiente
+          await _saveDraft(otpSent: true);
+          // Esperar la respuesta del servidor antes de avanzar
+          final success = await _send2FACode();
+          if (!success) return; // Bloquear navegación si hubo error
         }
         _pageController.nextPage(
           duration: Duration(milliseconds: 400),
@@ -145,7 +213,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen>
     ).show(context);
   }
 
-  Future<void> _send2FACode() async {
+  Future<bool> _send2FACode() async {
     setState(() => _isLoading = true);
     final email = _emailController.text.trim();
     // Use the authenticated sendOtp method directly
@@ -169,11 +237,14 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen>
         titleColor: Colors.white,
         messageColor: Colors.white70,
       ).show(context);
+      return true;
     } else if (res['message']?.toString().contains('ya está verificada') == true || res['message']?.toString().contains('already verified') == true) {
       // Si por error de conexión o fallos previos la cuenta ya está verificada, saltamos el OTP
       _saveProfileDirectly();
+      return false; // No avanzar de página, _saveProfileDirectly maneja la navegación
     } else {
       _showError(res['message'] ?? 'Error al enviar el código de verificación.');
+      return false; // Bloquear navegación
     }
   }
 
@@ -214,6 +285,9 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen>
 
       // Refrescar el usuario para que el email aparezca en la configuración
       await _authService.loadUserFromSession();
+
+      // Limpiar borrador: ya no se necesita
+      await _clearDraft();
       
       setState(() => _isVerifyingToken = false);
       
@@ -450,11 +524,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen>
             icon: Icons.email_outlined,
             delay: 400,
             keyboardType: TextInputType.emailAddress,
-            validator: (value) {
-              if (value == null || value.isEmpty) return 'Ingresa tu correo';
-              if (!value.contains('@')) return 'Ingresa un correo válido';
-              return null;
-            },
+            validator: (value) => InputSanitizer.validateEmail(value),
           ),
           SizedBox(height: 16),
           _buildTextField(
@@ -463,11 +533,9 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen>
             icon: Icons.phone_outlined,
             delay: 500,
             keyboardType: TextInputType.phone,
-            validator: (value) {
-              if (value == null || value.isEmpty) return 'Ingresa tu teléfono';
-              if (value.length < 10) return 'Teléfono inválido';
-              return null;
-            },
+            inputFormatters: [InputSanitizer.phoneOnly],
+            maxLength: 10,
+            validator: (value) => InputSanitizer.validatePhone(value),
           ),
           // Se eliminó la selección de SMS (ahora solo es por email)
           SizedBox(height: 28),
@@ -494,6 +562,8 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen>
             icon: Icons.lock_clock,
             delay: 400,
             keyboardType: TextInputType.number,
+            inputFormatters: [InputSanitizer.phoneOnly],
+            maxLength: 6,
           ),
           SizedBox(height: 16),
           TextButton(
@@ -566,6 +636,8 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen>
     required int delay,
     TextInputType keyboardType = TextInputType.text,
     String? Function(String?)? validator,
+    List<TextInputFormatter>? inputFormatters,
+    int? maxLength,
   }) {
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0.0, end: 1.0),
@@ -580,6 +652,8 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen>
         controller: controller,
         style: TextStyle(color: Colors.white),
         keyboardType: keyboardType,
+        inputFormatters: inputFormatters,
+        maxLength: maxLength,
         decoration: InputDecoration(
           labelText: label,
           labelStyle: TextStyle(color: Colors.white.withOpacity(0.8)),

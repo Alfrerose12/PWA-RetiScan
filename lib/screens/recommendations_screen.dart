@@ -57,7 +57,7 @@ class _RecommendationsScreenState extends State<RecommendationsScreen>
       final result = await _service.confirmMedicationTaken(id);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('✅ Toma registrada correctamente'),
+          content: Text('Toma registrada correctamente'),
           backgroundColor: Colors.green,
           behavior: SnackBarBehavior.floating,
         ),

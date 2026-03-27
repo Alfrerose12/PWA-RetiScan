@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import 'home_screen.dart';
+import 'complete_profile_screen.dart';
+import '../services/auth_service.dart';
 
 /// Pantalla animada que se muestra tras un login exitoso,
 /// igual que LogoutScreen pero en sentido inverso (abriendo sesión).
@@ -12,6 +14,7 @@ class LoginLoadingScreen extends StatefulWidget {
 
 class _LoginLoadingScreenState extends State<LoginLoadingScreen>
     with TickerProviderStateMixin {
+  final AuthService _authService = AuthService();
   late AnimationController _logoController;
   late AnimationController _breatheController;
   late AnimationController _rippleController;
@@ -98,7 +101,7 @@ class _LoginLoadingScreenState extends State<LoginLoadingScreen>
     _startProgressAnimation();
 
     await Future.delayed(Duration(milliseconds: 1500));
-    if (mounted) _navigateToHome();
+    if (mounted) _navigateToNextScreen();
   }
 
   void _startProgressAnimation() {
@@ -126,10 +129,19 @@ class _LoginLoadingScreenState extends State<LoginLoadingScreen>
     });
   }
 
-  void _navigateToHome() {
+  void _navigateToNextScreen() {
+    final user = _authService.currentUser;
+    
+    Widget nextScreen;
+    if (user != null && user.isPatient && !user.isVerified) {
+      nextScreen = CompleteProfileScreen();
+    } else {
+      nextScreen = HomeScreen();
+    }
+
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => HomeScreen(),
+        pageBuilder: (context, animation, secondaryAnimation) => nextScreen,
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(opacity: animation, child: child);
         },

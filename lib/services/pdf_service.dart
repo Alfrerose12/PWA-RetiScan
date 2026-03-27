@@ -1,10 +1,12 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'permission_service.dart';
+import 'web_download_stub.dart' if (dart.library.html) 'web_download_html.dart';
 
 class PdfService {
   static Future<void> generateAndShareReport({
@@ -12,12 +14,15 @@ class PdfService {
     required String analysisResult,
     required String date,
   }) async {
-    // Solicitar permiso de almacenamiento
-    bool hasPermission = await PermissionService.requestStoragePermission();
-    if (!hasPermission) {
-      print('No hay permisos de almacenamiento');
-      // En versiones recientes de Android, getTemporaryDirectory no requiere permiso,
-      // pero es buena práctica tenerlo cubierto si guardaríamos en descargas.
+    // Solicitar permiso de almacenamiento solo si no es web
+    bool hasPermission = true;
+    if (!kIsWeb) {
+      hasPermission = await PermissionService.requestStoragePermission();
+      if (!hasPermission) {
+        print('No hay permisos de almacenamiento');
+        // En versiones recientes de Android, getTemporaryDirectory no requiere permiso,
+        // pero es buena práctica tenerlo cubierto si guardaríamos en descargas.
+      }
     }
 
     final pdf = pw.Document();
@@ -63,12 +68,22 @@ class PdfService {
     );
 
     try {
-      final output = await getTemporaryDirectory();
-      final file = File('${output.path}/Reporte_Retiscan_${patientName.replaceAll(" ", "_")}.pdf');
-      await file.writeAsBytes(await pdf.save());
+      final String safePatientName = patientName.replaceAll(" ", "_");
+      final fileName = 'Reporte_Retiscan_$safePatientName.pdf';
 
-      // Compartir el archivo generado
-      await Share.shareXFiles([XFile(file.path)], text: 'Aquí tienes tu reporte de análisis de RetiScan.');
+      if (kIsWeb) {
+        // En web usamos la inyección de HTML para gatillar descarga nativa silenciosa
+        final bytes = await pdf.save();
+        downloadFileWeb(bytes, fileName);
+      } else {
+        // En móvil/desktop usamos archivos físicos
+        final output = await getTemporaryDirectory();
+        final file = File('${output.path}/$fileName');
+        await file.writeAsBytes(await pdf.save());
+
+        // Compartir el archivo generado
+        await Share.shareXFiles([XFile(file.path)], text: 'Aquí tienes tu reporte de análisis de RetiScan.');
+      }
     } catch (e) {
       print('Error al generar o compartir PDF: $e');
     }

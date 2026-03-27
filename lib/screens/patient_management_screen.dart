@@ -4,11 +4,14 @@ import 'package:provider/provider.dart';
 import 'dart:math' as math;
 import 'package:another_flushbar/flushbar.dart';
 import '../services/patient_service.dart';
+import '../services/analysis_service.dart';
 import '../models/patient.dart';
+import '../models/analysis.dart';
 import '../services/theme_service.dart';
 import '../config/input_sanitizer.dart';
 import '../widgets/responsive_wrapper.dart';
 import '../widgets/dashboard_charts.dart';
+import '../widgets/patient_details_modal.dart';
 
 class PatientManagementScreen extends StatefulWidget {
   @override
@@ -550,9 +553,19 @@ class _PatientManagementScreenState extends State<PatientManagementScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(patient.fullName, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Theme.of(context).textTheme.bodyLarge?.color)),
+                        Text(
+                          patient.fullName,
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Theme.of(context).textTheme.bodyLarge?.color),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                         SizedBox(height: 2),
-                        Text(patient.email ?? 'Sin correo', style: TextStyle(fontSize: 13, color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7))),
+                        Text(
+                          patient.email ?? 'Sin correo',
+                          style: TextStyle(fontSize: 13, color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7)),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                         SizedBox(height: 4),
                         Text("${patient.age} años • ${patient.totalAnalyses} análisis", style: TextStyle(fontSize: 12, color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.6))),
                       ],
@@ -605,68 +618,90 @@ class _PatientManagementScreenState extends State<PatientManagementScreen> {
           ),
           width: double.infinity,
           child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Theme(
-          data: Theme.of(context).copyWith(dividerColor: Theme.of(context).dividerColor.withOpacity(0.1)),
-          child: DataTable(
-            showCheckboxColumn: false,
-            headingRowColor: WidgetStateProperty.all(Theme.of(context).dividerColor.withOpacity(0.05)),
-            dataRowMaxHeight: 65,
-            dataRowMinHeight: 65,
-            horizontalMargin: 24,
-            columns: [
-              DataColumn(label: Text('Paciente', style: headerStyle)),
-              DataColumn(label: Text('Email', style: headerStyle)),
-              DataColumn(label: Text('Edad', style: headerStyle)),
-              DataColumn(label: Text('Análisis', style: headerStyle)),
-              DataColumn(label: Text('Estado', style: headerStyle)),
-              DataColumn(label: Text('Última Visita', style: headerStyle)),
-            ],
-            rows: pagedPatients.asMap().entries.map((entry) {
-              final index = entry.key;
-              final patient = entry.value;
-              final isOdd = index % 2 == 1;
-              
-              String estado = "Normal";
-              Color estadoColor = Colors.green;
-              if (index % 3 == 1) { estado = "Leve"; estadoColor = Colors.orange; }
-              if (index % 5 == 2) { estado = "Moderado"; estadoColor = Colors.deepOrange; }
+            borderRadius: BorderRadius.circular(12),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Theme(
+                data: Theme.of(context).copyWith(dividerColor: Theme.of(context).dividerColor.withOpacity(0.1)),
+                child: DataTable(
+                  showCheckboxColumn: false,
+                  headingRowColor: WidgetStateProperty.all(Theme.of(context).dividerColor.withOpacity(0.05)),
+                  dataRowMaxHeight: 65,
+                  dataRowMinHeight: 65,
+                  horizontalMargin: 24,
+                  columns: [
+                    DataColumn(label: Text('Paciente', style: headerStyle)),
+                    DataColumn(label: Text('Email', style: headerStyle)),
+                    DataColumn(label: Text('Edad', style: headerStyle)),
+                    DataColumn(label: Text('Análisis', style: headerStyle)),
+                    DataColumn(label: Text('Estado', style: headerStyle)),
+                    DataColumn(label: Text('Última Visita', style: headerStyle)),
+                  ],
+                  rows: pagedPatients.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final patient = entry.value;
+                    final isOdd = index % 2 == 1;
+                    
+                    String estado = "Normal";
+                    Color estadoColor = Colors.green;
+                    if (index % 3 == 1) { estado = "Leve"; estadoColor = Colors.orange; }
+                    if (index % 5 == 2) { estado = "Moderado"; estadoColor = Colors.deepOrange; }
 
-              return DataRow(
-                color: WidgetStateProperty.resolveWith<Color?>((Set<WidgetState> states) {
-                  if (states.contains(WidgetState.hovered)) return primaryColor.withOpacity(0.05);
-                  return isOdd ? Theme.of(context).dividerColor.withOpacity(0.01) : Colors.transparent;
-                }),
-                onSelectChanged: (_) => _showPatientDetailsModal(patient),
-                cells: [
-                  DataCell(Row(
-                    children: [
-                      Icon(Icons.person, size: 16, color: primaryColor.withOpacity(0.7)),
-                      SizedBox(width: 8),
-                      Text(patient.fullName, style: TextStyle(fontWeight: FontWeight.w600, color: textPrimary)),
-                    ],
-                  )),
-                  DataCell(Text(patient.email ?? '-', style: TextStyle(color: textSecondary))),
-                  DataCell(Text('${patient.age} años', style: TextStyle(color: textSecondary))),
-                  DataCell(Text('${patient.totalAnalyses}', style: TextStyle(color: textSecondary))),
-                  DataCell(
-                    Container(
-                      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: estadoColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: estadoColor.withOpacity(0.3)),
-                      ),
-                      child: Text(estado, style: TextStyle(color: estadoColor, fontSize: 11, fontWeight: FontWeight.bold)),
-                    )
-                  ),
-                  DataCell(Text('Hace 2 semanas', style: TextStyle(color: textSecondary))),
-                ]
-              );
-            }).toList(),
+                    return DataRow(
+                      color: WidgetStateProperty.resolveWith<Color?>((Set<WidgetState> states) {
+                        if (states.contains(WidgetState.hovered)) return primaryColor.withOpacity(0.05);
+                        return isOdd ? Theme.of(context).dividerColor.withOpacity(0.01) : Colors.transparent;
+                      }),
+                      onSelectChanged: (_) => _showPatientDetailsModal(patient),
+                      cells: [
+                        DataCell(Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.person, size: 16, color: primaryColor.withOpacity(0.7)),
+                            SizedBox(width: 8),
+                            ConstrainedBox(
+                              constraints: BoxConstraints(maxWidth: 200),
+                              child: Text(
+                                patient.fullName,
+                                style: TextStyle(fontWeight: FontWeight.w600, color: textPrimary),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        )),
+                        DataCell(
+                          ConstrainedBox(
+                            constraints: BoxConstraints(maxWidth: 200),
+                            child: Text(
+                              patient.email ?? '-',
+                              style: TextStyle(color: textSecondary),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ),
+                        DataCell(Text('${patient.age} años', style: TextStyle(color: textSecondary))),
+                        DataCell(Text('${patient.totalAnalyses}', style: TextStyle(color: textSecondary))),
+                        DataCell(
+                          Container(
+                            padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: estadoColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: estadoColor.withOpacity(0.3)),
+                            ),
+                            child: Text(estado, style: TextStyle(color: estadoColor, fontSize: 11, fontWeight: FontWeight.bold)),
+                          )
+                        ),
+                        DataCell(Text('Hace 2 semanas', style: TextStyle(color: textSecondary))),
+                      ]
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
           ),
-        ),
-      ),
         ),
         buildPaginationControls(),
         // Leyenda debajo de la tabla
@@ -732,63 +767,58 @@ class _PatientManagementScreenState extends State<PatientManagementScreen> {
                       children: [
                         TextFormField(
                           controller: _firstNameController,
-                          inputFormatters: [InputSanitizer.blockDangerousChars],
+                          inputFormatters: [InputSanitizer.nameOnly],
+                          maxLength: 50,
                           style: TextStyle(color: textPrimary),
                           decoration: InputDecoration(
                             labelText: 'Nombre(s)',
                             labelStyle: TextStyle(color: textSecondary),
                             prefixIcon: Icon(Icons.person, color: primaryColor),
+                            counterStyle: TextStyle(color: textSecondary),
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1))),
                             enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1))),
                             focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: primaryColor)),
                             filled: true,
                             fillColor: Theme.of(context).scaffoldBackgroundColor,
                           ),
-                          validator: (val) {
-                            final safe = InputSanitizer.validateSafeInput(val);
-                            if (safe != null) return safe;
-                            return val!.isEmpty ? 'Requerido' : null;
-                          },
+                          validator: (val) => InputSanitizer.validateName(val, campo: 'Nombre'),
                         ),
                         SizedBox(height: 16),
                         TextFormField(
                           controller: _paternalSurnameController,
-                          inputFormatters: [InputSanitizer.blockDangerousChars],
+                          inputFormatters: [InputSanitizer.nameOnly],
+                          maxLength: 50,
                           style: TextStyle(color: textPrimary),
                           decoration: InputDecoration(
                             labelText: 'Apellido Paterno',
                             labelStyle: TextStyle(color: textSecondary),
                             prefixIcon: Icon(Icons.badge, color: primaryColor),
+                            counterStyle: TextStyle(color: textSecondary),
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1))),
                             enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1))),
                             focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: primaryColor)),
                             filled: true,
                             fillColor: Theme.of(context).scaffoldBackgroundColor,
                           ),
-                          validator: (val) {
-                            final safe = InputSanitizer.validateSafeInput(val);
-                            if (safe != null) return safe;
-                            return val!.isEmpty ? 'Requerido' : null;
-                          },
+                          validator: (val) => InputSanitizer.validateName(val, campo: 'Apellido Paterno'),
                         ),
                         SizedBox(height: 16),
                         TextFormField(
                           controller: _maternalSurnameController,
-                          inputFormatters: [InputSanitizer.blockDangerousChars],
+                          inputFormatters: [InputSanitizer.nameOnly],
+                          maxLength: 50,
                           style: TextStyle(color: textPrimary),
                           decoration: InputDecoration(
                             labelText: 'Apellido Materno (Opcional)',
                             labelStyle: TextStyle(color: textSecondary),
                             prefixIcon: Icon(Icons.badge_outlined, color: primaryColor),
+                            counterStyle: TextStyle(color: textSecondary),
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1))),
                             enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1))),
                             focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: primaryColor)),
                             filled: true,
                             fillColor: Theme.of(context).scaffoldBackgroundColor,
                           ),
-                          validator: (val) {
-                            return InputSanitizer.validateSafeInput(val);
-                          },
                         ),
                         SizedBox(height: 24),
                         SizedBox(
@@ -889,132 +919,7 @@ class _PatientManagementScreenState extends State<PatientManagementScreen> {
   void _showPatientDetailsModal(Patient patient) {
     showDialog(
       context: context,
-      builder: (context) {
-        final textPrimary = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black;
-        final textSecondary = Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7) ?? Colors.grey;
-        final primaryColor = Theme.of(context).brightness == Brightness.dark 
-            ? Theme.of(context).colorScheme.secondary 
-            : Theme.of(context).colorScheme.primary;
-
-        String formatDate(DateTime? date) {
-          if (date == null) return 'No disponible';
-          return "${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}";
-        }
-
-        // Simulación
-        String estado = "Normal";
-        Color estadoColor = Colors.green;
-
-        return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-          insetPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-          child: Container(
-            width: double.infinity,
-            constraints: BoxConstraints(maxWidth: 500, maxHeight: MediaQuery.of(context).size.height * 0.9),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Header (App bar like)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        icon: Icon(Icons.arrow_back, color: textPrimary),
-                        onPressed: () => Navigator.of(context).pop(),
-                      ),
-                      SizedBox(width: 8),
-                      Text('Detalles del Paciente', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textPrimary)),
-                    ],
-                  ),
-                ),
-                SizedBox(height: 16),
-                
-                Flexible(
-                  child: SingleChildScrollView(
-                    padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // Card Header Azul
-                        Container(
-                          padding: EdgeInsets.all(24),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [Color(0xFF17387A), Color(0xFF2B52B6)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(color: Color(0xFF17387A).withOpacity(0.3), blurRadius: 10, offset: Offset(0, 4)),
-                            ],
-                          ),
-                          child: Row(
-                            children: [
-                              CircleAvatar(
-                                radius: 36,
-                                backgroundColor: Colors.white.withOpacity(0.15),
-                                child: Icon(Icons.person, size: 40, color: Colors.white),
-                              ),
-                              SizedBox(width: 20),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(patient.fullName, style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-                                    SizedBox(height: 4),
-                                    Text(patient.email ?? 'Sin correo', style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 13)),
-                                    SizedBox(height: 12),
-                                    Container(
-                                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: estadoColor.withOpacity(0.2), // Idealmente un verde brillante
-                                        borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(color: estadoColor.withOpacity(0.5)),
-                                      ),
-                                      child: Text('Estado: $estado', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        SizedBox(height: 32),
-                        
-                        Text('Información del Paciente', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textPrimary)),
-                        SizedBox(height: 16),
-                        
-                        // Tarjetas de información
-                        _buildInfoCard(Icons.cake, 'Edad', '${patient.age} años', context),
-                        _buildInfoCard(Icons.phone, 'Teléfono', patient.phone ?? 'No disponible', context),
-                        _buildInfoCard(Icons.bar_chart, 'Total Análisis', '${patient.totalAnalyses}', context),
-                        _buildInfoCard(Icons.calendar_today, 'Última Visita', formatDate(patient.lastVisit), context),
-                        
-                        SizedBox(height: 32),
-                        Text('Análisis Recientes', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textPrimary)),
-                        SizedBox(height: 16),
-                        
-                        // Lista de Análisis Recientes Simulados
-                        _buildAnalysisCard('15/11/2024', 'Sin anomalías detectadas', 'Normal', Colors.green, context),
-                        SizedBox(height: 12),
-                        _buildAnalysisCard('01/11/2024', 'Sin anomalías detectadas', 'Normal', Colors.green, context),
-                        SizedBox(height: 24),
-                        
-                        SizedBox(height: 24),
-                        SizedBox(height: 24),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+      builder: (context) => PatientDetailsModal(patient: patient),
     );
   }
 

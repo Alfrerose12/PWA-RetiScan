@@ -519,14 +519,20 @@ class _HomeContentState extends State<HomeContent>
     final isDoctor = user?.isDoctor ?? false;
     final userName = _realName ?? user?.fullName ?? user?.email ?? 'Usuario';
 
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 600;
+    final hPadding = isMobile ? 16.0 : 24.0;
+
     return Container(
       color: Theme.of(context).scaffoldBackgroundColor,
       child: Center(
         child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: 900),
           child: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-            child: Column(
+            padding: EdgeInsets.symmetric(horizontal: hPadding, vertical: 24),
+            child: SizedBox(
+              width: double.infinity,
+              child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // ── Tarjeta de bienvenida ──
@@ -606,8 +612,9 @@ class _HomeContentState extends State<HomeContent>
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   // Convierte número de mes a nombre en español
   String _monthName(int month) {
@@ -633,6 +640,7 @@ class _HomeContentState extends State<HomeContent>
     final secondaryColor = Theme.of(context).colorScheme.secondary;
 
     return Container(
+      width: double.infinity,
       padding: EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -695,22 +703,26 @@ class _HomeContentState extends State<HomeContent>
       final totalPatients = _authService.isDoctor ? _recentPatients.length : 0; // Se actualizará a real abajo si lo bajamos completo, o pasaremos el conteo.
       // Ya que HomeScreen baja solo los últimos 3, necesitamos el count real. 
       // Por ahora usaré '...' o el len real cuando modifiquemos authService para traer el total.
+      final spacing = MediaQuery.of(context).size.width < 600 ? 8.0 : 12.0;
+
       return Row(
         children: [
           Expanded(child: _buildStatCard(Icons.people, 'Pacientes', _isLoadingPatients ? '...' : '$_totalPatientsCount')),
-          SizedBox(width: 12),
-          Expanded(child: _buildStatCard(Icons.analytics_outlined, 'Análisis Hoy', '0')), // TODO: Conectar real después
-          SizedBox(width: 12),
+          SizedBox(width: spacing),
+          Expanded(child: _buildStatCard(Icons.analytics_outlined, 'Análisis Hoy', '0')),
+          SizedBox(width: spacing),
           Expanded(child: _buildStatCard(Icons.pending_actions, 'Pendientes', '0')),
         ],
       );
     }
+    
+    final spacing = MediaQuery.of(context).size.width < 600 ? 8.0 : 12.0;
     return Row(
       children: [
         Expanded(child: _buildStatCard(Icons.visibility, 'Mis Análisis', '8')),
-        SizedBox(width: 12),
+        SizedBox(width: spacing),
         Expanded(child: _buildStatCard(Icons.check_circle_outline, 'Estado', 'Normal')),
-        SizedBox(width: 12),
+        SizedBox(width: spacing),
         Expanded(child: _buildStatCard(Icons.calendar_today, 'Próxima Rev.', '15 Dic')),
       ],
     );

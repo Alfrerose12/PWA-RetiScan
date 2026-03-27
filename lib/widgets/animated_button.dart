@@ -150,13 +150,17 @@ class _AnimatedButtonState extends State<AnimatedButton>
               Icon(widget.icon, color: textColor, size: 20),
               SizedBox(width: 8),
             ],
-            Text(
-              widget.text,
-              style: TextStyle(
-                color: textColor,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
+            Flexible(
+              child: Text(
+                widget.text,
+                style: TextStyle(
+                  color: textColor,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],

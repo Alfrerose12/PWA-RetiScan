@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'login_screen.dart';
 import 'home_screen.dart';
+import 'complete_profile_screen.dart';
 import '../services/auth_service.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -147,12 +148,22 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   void _navigateToNextScreen() {
+    final user = _authService.currentUser;
     final isAuthenticated = _authService.isAuthenticated;
+
+    Widget nextScreen;
+    if (!isAuthenticated) {
+      nextScreen = LoginScreen();
+    } else if (user != null && user.isPatient && !user.isVerified) {
+      // Si es paciente y no está verificado, forzar a completar perfil
+      nextScreen = CompleteProfileScreen();
+    } else {
+      nextScreen = HomeScreen();
+    }
 
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            isAuthenticated ? HomeScreen() : LoginScreen(),
+        pageBuilder: (context, animation, secondaryAnimation) => nextScreen,
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(opacity: animation, child: child);
         },

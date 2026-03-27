@@ -137,7 +137,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
       Navigator.of(context).pop();
       Flushbar(
         title: 'Éxito',
-        message: '✅ Contraseña restablecida. Ya puedes iniciar sesión.',
+        message: 'Contraseña restablecida. Ya puedes iniciar sesión.',
         icon: Icon(Icons.check_circle, size: 28, color: Colors.greenAccent),
         backgroundColor: Color(0xFF1E1E2E),
         borderColor: Colors.greenAccent.withOpacity(0.5),

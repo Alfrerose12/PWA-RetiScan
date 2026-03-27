@@ -3,6 +3,8 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:another_flushbar/flushbar.dart';
+import 'home_screen.dart';
 import '../widgets/animated_button.dart';
 import '../widgets/responsive_wrapper.dart';
 import '../services/pdf_service.dart';
@@ -20,6 +22,7 @@ class _CaptureScreenState extends State<CaptureScreen>
     with TickerProviderStateMixin {
   XFile? _selectedImageFile;
   bool _isUploading = false;
+  bool _isSaving = false;
   bool _analysisComplete = false;
   Analysis? _analysisResult;
   Map<String, String>? _displayResults;
@@ -258,25 +261,31 @@ class _CaptureScreenState extends State<CaptureScreen>
 
   Future<void> _runAnalysis() async {
     try {
-      // Simular progreso visual mientras se conecta a la API
-      // En un entorno real, aquí se enviaría la imagen al servidor
-      setState(() => _statusMessage = 'Analizando imagen con IA...');
+      setState(() => _statusMessage = 'Enviando imagen al servidor...');
 
-      // Usar el servicio existente para crear el análisis
-      // Por ahora usamos simulación porque el endpoint requiere patientId del médico
-      await Future.delayed(Duration(milliseconds: 1500));
+      // Usar el servicio real para subir archivo. Pasamos patientId vacío porque el backend lo resuelve si es PACIENTE.
+      // (Si en un futuro el médico usa esta pantalla, necesitaremos pasar el patientId actual).
+      final analysis = await _analysisService.createAnalysis(
+        '',
+        imageFile: _selectedImageFile,
+        eye: 'LEFT', // Temporalmente siempre LEFT, o se podría dar a elegir
+      );
+
       setState(() {
         _currentProgress = 0.4;
         _statusMessage = 'Procesando retina...';
       });
 
-      await Future.delayed(Duration(milliseconds: 1000));
-      setState(() {
-        _currentProgress = 0.7;
-        _statusMessage = 'Detectando anomalías...';
-      });
+      // Hacer polling hasta que el backend termine
+      Analysis? finalAnalysis;
+      await for (final update in _analysisService.pollUntilComplete(analysis.id)) {
+        finalAnalysis = update;
+      }
 
-      await Future.delayed(Duration(milliseconds: 1000));
+      if (finalAnalysis == null || finalAnalysis.status == 'FAILED') {
+        throw Exception('El análisis falló en el servidor IA');
+      }
+
       setState(() {
         _currentProgress = 1.0;
         _statusMessage = 'Análisis completado';
@@ -287,12 +296,19 @@ class _CaptureScreenState extends State<CaptureScreen>
       setState(() {
         _isUploading = false;
         _analysisComplete = true;
+        _analysisResult = finalAnalysis;
+        
+        final aiData = finalAnalysis!.aiResult ?? {};
+        final lesions = aiData['lesions_detected'] as Map<String, dynamic>? ?? {};
+        
+        // Mapear resultados reales de la API
         _displayResults = {
-          'Macula': 'Normal',
-          'Vasos sanguíneos': 'Leves cambios',
-          'Papila óptica': 'Normal',
-          'Retina': 'Sin anomalías detectadas',
-          'Vitreo': 'Transparente',
+          'Grado (DR)': aiData['grade']?.toString() ?? 'Normal',
+          'Confianza IA': '${((aiData['confidence'] ?? 0.0) * 100).toInt()}%',
+          'Microaneurismas': (lesions['microaneurysms'] == true) ? 'Detectados' : 'No detectados',
+          'Hemorragias': (lesions['hemorrhages'] == true) ? 'Detectadas' : 'No detectadas',
+          'Exudados duros': (lesions['hard_exudates'] == true) ? 'Detectados' : 'No detectados',
+          'Neovascularización': (lesions['neovascularization'] == true) ? 'Detectada' : 'No detectada',
         };
       });
 
@@ -302,7 +318,7 @@ class _CaptureScreenState extends State<CaptureScreen>
       NotificationService.showNotification(
         id: 0,
         title: 'Análisis Completado',
-        body: 'El análisis de su retina ha finalizado. Verifique los resultados.',
+        body: 'El resultado ha finalizado: ${finalAnalysis!.aiResult?['grade'] ?? 'Normal'}. Verifique los detalles.',
       );
     } catch (e) {
       _orbitController.stop();
@@ -318,6 +334,42 @@ class _CaptureScreenState extends State<CaptureScreen>
           ),
         );
       }
+    }
+  }
+
+  Future<void> _submitAnalysis() async {
+    setState(() => _isSaving = true);
+    
+    // Simular guardado final/confirmación en el sistema
+    await Future.delayed(Duration(seconds: 1));
+    
+    if (mounted) {
+      await Flushbar(
+        title: 'Análisis finalizado',
+        message: 'El registro se ha guardado correctamente en tu historial.',
+        icon: Icon(Icons.check_circle_outline, size: 28, color: Colors.greenAccent),
+        backgroundColor: Color(0xFF1E1E2E), // Mismo fondo que login/registro
+        borderColor: Colors.greenAccent.withOpacity(0.5),
+        borderWidth: 1.5,
+        borderRadius: BorderRadius.circular(12),
+        margin: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        flushbarPosition: FlushbarPosition.TOP,
+        duration: Duration(seconds: 3),
+        boxShadows: [
+          BoxShadow(color: Colors.greenAccent.withOpacity(0.2), blurRadius: 10)
+        ],
+        titleColor: Colors.white,
+        messageColor: Colors.white70,
+      ).show(context);
+      
+      if (!mounted) return;
+      
+      // Regresar al inicio (Home)
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => HomeScreen()),
+        (route) => false,
+      );
     }
   }
 
@@ -705,9 +757,9 @@ class _CaptureScreenState extends State<CaptureScreen>
                   SizedBox(width: 16),
                   Expanded(
                     child: AnimatedButton(
-                      text: 'Guardar',
-                      icon: Icons.save,
-                      onPressed: () {},
+                      text: _isSaving ? 'Guardando...' : 'Guardar',
+                      icon: _isSaving ? Icons.hourglass_empty : Icons.save,
+                      onPressed: _isSaving ? null : _submitAnalysis,
                       backgroundColor: Theme.of(context).colorScheme.primary,
                     ),
                   ),
@@ -722,8 +774,9 @@ class _CaptureScreenState extends State<CaptureScreen>
                         .entries
                         .map((e) => '${e.key}: ${e.value}')
                         .join('\n');
+                    final patientName = _authService.currentUser?.fullName ?? 'Paciente';
                     PdfService.generateAndShareReport(
-                      patientName: 'Paciente de prueba',
+                      patientName: patientName,
                       analysisResult: resultsString,
                       date: DateTime.now().toString().split(' ')[0],
                     );
